@@ -1,0 +1,1501 @@
+{
+  "_links": {
+    "self": {
+      "href": "/cases/f2687747-0bd7-4ded-aa4c-8dc123b9e624"
+    }
+  },
+  "address": {
+    "_links": {
+      "self": {
+        "href": "/addresses/0a3f50aa-6f17-32b8-e044-0003ba298018"
+      }
+    },
+    "addressID": "0a3f50aa-6f17-32b8-e044-0003ba298018",
+    "addressType": "villa",
+    "allowNewValuationInfo": true,
+    "bfeNumbers": [
+      2242868
+    ],
+    "boligsidenInfo": {
+      "latestSoldArea": 160
+    },
+    "buildings": [
+      {
+        "basementArea": 64,
+        "bathroomCondition": "Badeværelse i enheden",
+        "buildingName": "Fritliggende enfamilieshus (parcelhus)",
+        "buildingNumber": "1",
+        "externalWallMaterial": "Mursten",
+        "heatingInstallation": "Varmepumpe",
+        "housingArea": 140,
+        "kitchenCondition": "Eget køkken med afløb",
+        "numberOfBathrooms": 1,
+        "numberOfFloors": 1,
+        "numberOfRooms": 3,
+        "numberOfToilets": 1,
+        "roofingMaterial": "Tegl",
+        "supplementaryHeating": "Ovne til flydende brændsel",
+        "toiletCondition": "Vandskyllende toilet i enheden",
+        "totalArea": 85,
+        "yearBuilt": 1953,
+        "yearRenovated": 1997
+      },
+      {
+        "buildingName": "Udhus",
+        "buildingNumber": "3",
+        "externalWallMaterial": "Træ",
+        "roofingMaterial": "Tagpap med lille hældning",
+        "totalArea": 11,
+        "yearBuilt": 2017
+      },
+      {
+        "buildingName": "Udhus",
+        "buildingNumber": "4",
+        "externalWallMaterial": "Træ",
+        "roofingMaterial": "Plastmaterialer",
+        "totalArea": 8,
+        "yearBuilt": 1953
+      },
+      {
+        "buildingName": "Drivhus",
+        "buildingNumber": "2",
+        "externalWallMaterial": "Glas",
+        "roofingMaterial": "Plastmaterialer",
+        "totalArea": 16,
+        "yearBuilt": 2020
+      }
+    ],
+    "casePrice": 2995000,
+    "city": {
+      "name": "Skibby",
+      "slug": "skibby"
+    },
+    "cityName": "Skibby",
+    "coordinates": {
+      "lat": 55.747135,
+      "lon": 11.960018,
+      "type": "EPSG4326"
+    },
+    "daysOnMarket": {
+      "realtors": []
+    },
+    "energyLabel": "c",
+    "entryAddressID": "0a3f5080-9cf5-32b8-e044-0003ba298018",
+    "gstkvhx": "02500207__24_______",
+    "houseNumber": "24",
+    "isOnMarket": true,
+    "isPublic": true,
+    "latestValuation": 1935000,
+    "livingArea": 140,
+    "municipality": {
+      "churchTaxPercentage": 0.96,
+      "councilTaxPercentage": 25.7,
+      "landValueTaxLevelPerThousand": 12,
+      "municipalityCode": 250,
+      "name": "Frederikssund",
+      "numberOfSchools": 22,
+      "population": 46358,
+      "slug": "frederikssund"
+    },
+    "propertyNumber": 15410,
+    "province": {
+      "name": "Nordsjælland",
+      "provinceCode": "DK013",
+      "regionCode": 1084,
+      "slug": "nordsjaelland"
+    },
+    "registrations": [
+      {
+        "amount": 2970000,
+        "area": 140,
+        "date": "2021-04-21",
+        "livingArea": 160,
+        "municipalityCode": 250,
+        "perAreaPrice": 18563,
+        "propertyNumber": 15410,
+        "registrationID": "5591187",
+        "type": "normal"
+      },
+      {
+        "amount": 910089,
+        "area": 164,
+        "date": "2018-01-23",
+        "municipalityCode": 250,
+        "propertyNumber": 15410,
+        "registrationID": "5106102",
+        "type": "other"
+      },
+      {
+        "amount": 2660000,
+        "area": 164,
+        "date": "2007-01-30",
+        "municipalityCode": 250,
+        "propertyNumber": 15410,
+        "registrationID": "3802384",
+        "type": "normal"
+      },
+      {
+        "amount": 647000,
+        "area": 164,
+        "date": "1995-09-01",
+        "municipalityCode": 250,
+        "propertyNumber": 15410,
+        "registrationID": "2429715",
+        "type": "normal"
+      }
+    ],
+    "road": {
+      "municipalityCode": 250,
+      "name": "Degnebakken",
+      "roadCode": 207,
+      "roadID": "7984593a-024f-435f-bcdc-e95b02696973",
+      "slug": "degnebakken"
+    },
+    "roadName": "Degnebakken",
+    "slug": "degnebakken-24-4050-skibby-02500207__24_______",
+    "slugAddress": "degnebakken-24-4050-skibby",
+    "weightedArea": 164.85,
+    "zip": {
+      "name": "Skibby",
+      "slug": "skibby",
+      "zipCode": 4050
+    },
+    "zipCode": 4050
+  },
+  "addressType": "villa",
+  "basementArea": 64,
+  "caseID": "f2687747-0bd7-4ded-aa4c-8dc123b9e624",
+  "caseUrl": "https://www.edc.dk/sag/?sagsnr=36009710",
+  "coordinates": {
+    "lat": 55.747135,
+    "lon": 11.960018,
+    "type": "EPSG4326"
+  },
+  "daysOnMarket": 189,
+  "defaultImage": {
+    "imageSources": [
+      {
+        "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+        "size": {
+          "height": 80,
+          "width": 100
+        },
+        "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/100x80/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+      },
+      {
+        "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+        "size": {
+          "height": 118,
+          "width": 143
+        },
+        "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/143x118/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+      },
+      {
+        "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+        "size": {
+          "height": 200,
+          "width": 300
+        },
+        "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/300x200/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+      },
+      {
+        "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+        "size": {
+          "height": 400,
+          "width": 600
+        },
+        "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+      },
+      {
+        "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+        "size": {
+          "height": 600,
+          "width": 600
+        },
+        "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x600/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+      },
+      {
+        "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+        "size": {
+          "height": 960,
+          "width": 1440
+        },
+        "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+      }
+    ]
+  },
+  "descriptionBody": "Åbent hus med tilmeldingskrav 8/10 - klik på billede - Velkommen til Degnebakken 24 – en skøn villa tæt på smukke grønne områder, som med sin høje beliggenhed har fjordkig til den fantastiske, Roskilde Fjord. Villaen er med sjæl og charme, perfekt beliggende midt i Skibby, hvor mulighederne for sport og foreningsliv er lige rundt om hjørnet. Her får du det bedste fra begge verdener – byens bekvemmeligheder og naturens ro lige udenfor døren. Villaen byder på hele 140 kvadratmeter bolig samt en yderst anvendelig kælder på 64 kvadratmeter, som kan tilgås direkte fra terrænniveau. Kælderen rummer flere disponible rum, vaskerum og et badeværelse, hvilket giver gode anvendelsesmuligheder. I stueetagen finder du et rummeligt køkken-alrum, der er husets naturlige samlingspunkt, samt en hyggelig stue med masser af lysindfald og en skøn udsigt over området. Herudover rummer etagen et soveværelse samt skønt badeværelse. På første sal finder du yderligere 3 gode værelser samt en fantastisk udsigt over det grønne landskab, som omgiver byen. Grunden er velanlagt med en hyggelig have, der indbyder til afslapning og udeliv. Her finder du også et charmerende orangeri, hvor du kan nyde sommeraftenerne i fulde drag, uanset vejret, samt et godt naboskab. Fra ejendommen har du gåafstand til alle Skibbys faciliteter, hvad enten du skal handle i midtbyen eller ønsker at gå på opdagelse i det omkringliggende naturområde 'Skjoldungernes Land'. Derudover er villaen i kort gåafstand til skole, institution og bibliotek. En charmerende bolig med en ideel beliggenhed – kontakt os i dag for en personlig fremvisning!Når du køber en bolig gennem EDC, har du mulighed for at få en gratis flytteforsikring. Ønsker du denne, skal du sende en mail med \"Ja tak\" til flytteforsikring@gjensidige.dk ",
+  "descriptionTitle": "Charmerende villa i hjertet af Skibby",
+  "distinction": "real_estate",
+  "energyLabel": "c",
+  "floorPlanImages": [
+    {
+      "imageSources": [
+        {
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/86b01a34-7a62-4753-ab1b-86d4c36dad1e.webp"
+        },
+        {
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/86b01a34-7a62-4753-ab1b-86d4c36dad1e.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/fe34a4d3-9d24-4c9c-af46-40e7749d58f5.webp"
+        },
+        {
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/fe34a4d3-9d24-4c9c-af46-40e7749d58f5.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/126844f0-6e50-4abf-a4ec-ad8d6d547333.webp"
+        },
+        {
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/126844f0-6e50-4abf-a4ec-ad8d6d547333.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/1c1d05a4-5a77-4f64-984c-43377e8077f1.webp"
+        },
+        {
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/floor_plan_case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/1c1d05a4-5a77-4f64-984c-43377e8077f1.webp"
+        }
+      ]
+    }
+  ],
+  "hasBalcony": false,
+  "hasElevator": false,
+  "hasTerrace": false,
+  "highlighted": false,
+  "housingArea": 140,
+  "images": [
+    {
+      "imageSources": [
+        {
+          "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+          "size": {
+            "height": 80,
+            "width": 100
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/100x80/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+        },
+        {
+          "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+          "size": {
+            "height": 118,
+            "width": 143
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/143x118/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+        },
+        {
+          "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+          "size": {
+            "height": 200,
+            "width": 300
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/300x200/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+        },
+        {
+          "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+        },
+        {
+          "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+          "size": {
+            "height": 600,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x600/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+        },
+        {
+          "alt": "Et lyst opholdsrum med hvide trævinduer og fliser på gulvet. Vinduerne åbner ud mod en have med grønne planter. To krukker med planter står i hjørnet.",
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/e60f06ae-a98b-41b1-af1a-d07e1611f513.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "alt": "Et moderne køkken med træmøbler i aktion, sollys strømmer ind gennem store vinduer. Spisebord med stole i venstre hjørne, en ur dekorerer væggen.",
+          "size": {
+            "height": 80,
+            "width": 100
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/100x80/0087c9f1-ae61-4126-8402-fc571f28ffbf.webp"
+        },
+        {
+          "alt": "Et moderne køkken med træmøbler i aktion, sollys strømmer ind gennem store vinduer. Spisebord med stole i venstre hjørne, en ur dekorerer væggen.",
+          "size": {
+            "height": 118,
+            "width": 143
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/143x118/0087c9f1-ae61-4126-8402-fc571f28ffbf.webp"
+        },
+        {
+          "alt": "Et moderne køkken med træmøbler i aktion, sollys strømmer ind gennem store vinduer. Spisebord med stole i venstre hjørne, en ur dekorerer væggen.",
+          "size": {
+            "height": 200,
+            "width": 300
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/300x200/0087c9f1-ae61-4126-8402-fc571f28ffbf.webp"
+        },
+        {
+          "alt": "Et moderne køkken med træmøbler i aktion, sollys strømmer ind gennem store vinduer. Spisebord med stole i venstre hjørne, en ur dekorerer væggen.",
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/0087c9f1-ae61-4126-8402-fc571f28ffbf.webp"
+        },
+        {
+          "alt": "Et moderne køkken med træmøbler i aktion, sollys strømmer ind gennem store vinduer. Spisebord med stole i venstre hjørne, en ur dekorerer væggen.",
+          "size": {
+            "height": 600,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x600/0087c9f1-ae61-4126-8402-fc571f28ffbf.webp"
+        },
+        {
+          "alt": "Et moderne køkken med træmøbler i aktion, sollys strømmer ind gennem store vinduer. Spisebord med stole i venstre hjørne, en ur dekorerer væggen.",
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/0087c9f1-ae61-4126-8402-fc571f28ffbf.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "alt": "Et murstenshus med rødt tegltag står på en græsplæne. Huset har en tilbygget veranda med vinduer og en lille trappe. Omkring er der træer og naboens tag.",
+          "size": {
+            "height": 80,
+            "width": 100
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/100x80/4322a77a-e0b4-46d1-ac36-2edf46aba63a.webp"
+        },
+        {
+          "alt": "Et murstenshus med rødt tegltag står på en græsplæne. Huset har en tilbygget veranda med vinduer og en lille trappe. Omkring er der træer og naboens tag.",
+          "size": {
+            "height": 118,
+            "width": 143
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/143x118/4322a77a-e0b4-46d1-ac36-2edf46aba63a.webp"
+        },
+        {
+          "alt": "Et murstenshus med rødt tegltag står på en græsplæne. Huset har en tilbygget veranda med vinduer og en lille trappe. Omkring er der træer og naboens tag.",
+          "size": {
+            "height": 200,
+            "width": 300
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/300x200/4322a77a-e0b4-46d1-ac36-2edf46aba63a.webp"
+        },
+        {
+          "alt": "Et murstenshus med rødt tegltag står på en græsplæne. Huset har en tilbygget veranda med vinduer og en lille trappe. Omkring er der træer og naboens tag.",
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/4322a77a-e0b4-46d1-ac36-2edf46aba63a.webp"
+        },
+        {
+          "alt": "Et murstenshus med rødt tegltag står på en græsplæne. Huset har en tilbygget veranda med vinduer og en lille trappe. Omkring er der træer og naboens tag.",
+          "size": {
+            "height": 600,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x600/4322a77a-e0b4-46d1-ac36-2edf46aba63a.webp"
+        },
+        {
+          "alt": "Et murstenshus med rødt tegltag står på en græsplæne. Huset har en tilbygget veranda med vinduer og en lille trappe. Omkring er der træer og naboens tag.",
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/4322a77a-e0b4-46d1-ac36-2edf46aba63a.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "alt": "Et hus står i en have med blomstrende buske, omgivet af grønne træer. Der er en terrasse med havemøbler under en klar blå himmel.",
+          "size": {
+            "height": 80,
+            "width": 100
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/100x80/2ec31ed5-1294-4d51-8655-b8752d20e960.webp"
+        },
+        {
+          "alt": "Et hus står i en have med blomstrende buske, omgivet af grønne træer. Der er en terrasse med havemøbler under en klar blå himmel.",
+          "size": {
+            "height": 118,
+            "width": 143
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/143x118/2ec31ed5-1294-4d51-8655-b8752d20e960.webp"
+        },
+        {
+          "alt": "Et hus står i en have med blomstrende buske, omgivet af grønne træer. Der er en terrasse med havemøbler under en klar blå himmel.",
+          "size": {
+            "height": 200,
+            "width": 300
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/300x200/2ec31ed5-1294-4d51-8655-b8752d20e960.webp"
+        },
+        {
+          "alt": "Et hus står i en have med blomstrende buske, omgivet af grønne træer. Der er en terrasse med havemøbler under en klar blå himmel.",
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/2ec31ed5-1294-4d51-8655-b8752d20e960.webp"
+        },
+        {
+          "alt": "Et hus står i en have med blomstrende buske, omgivet af grønne træer. Der er en terrasse med havemøbler under en klar blå himmel.",
+          "size": {
+            "height": 600,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x600/2ec31ed5-1294-4d51-8655-b8752d20e960.webp"
+        },
+        {
+          "alt": "Et hus står i en have med blomstrende buske, omgivet af grønne træer. Der er en terrasse med havemøbler under en klar blå himmel.",
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/2ec31ed5-1294-4d51-8655-b8752d20e960.webp"
+        }
+      ]
+    },
+    {
+      "imageSources": [
+        {
+          "alt": "Et lyst køkken-alrum med et træbord og fire stole. Bordet er pyntet med blomster. Køkkenet har hvide vægskabe, en stor køleskab, og vinduer med udsigt til en have.",
+          "size": {
+            "height": 80,
+            "width": 100
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/100x80/48cb9c0f-5e61-4fe1-a63a-24ea5cfa4786.webp"
+        },
+        {
+          "alt": "Et lyst køkken-alrum med et træbord og fire stole. Bordet er pyntet med blomster. Køkkenet har hvide vægskabe, en stor køleskab, og vinduer med udsigt til en have.",
+          "size": {
+            "height": 118,
+            "width": 143
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/143x118/48cb9c0f-5e61-4fe1-a63a-24ea5cfa4786.webp"
+        },
+        {
+          "alt": "Et lyst køkken-alrum med et træbord og fire stole. Bordet er pyntet med blomster. Køkkenet har hvide vægskabe, en stor køleskab, og vinduer med udsigt til en have.",
+          "size": {
+            "height": 200,
+            "width": 300
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/300x200/48cb9c0f-5e61-4fe1-a63a-24ea5cfa4786.webp"
+        },
+        {
+          "alt": "Et lyst køkken-alrum med et træbord og fire stole. Bordet er pyntet med blomster. Køkkenet har hvide vægskabe, en stor køleskab, og vinduer med udsigt til en have.",
+          "size": {
+            "height": 400,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x400/48cb9c0f-5e61-4fe1-a63a-24ea5cfa4786.webp"
+        },
+        {
+          "alt": "Et lyst køkken-alrum med et træbord og fire stole. Bordet er pyntet med blomster. Køkkenet har hvide vægskabe, en stor køleskab, og vinduer med udsigt til en have.",
+          "size": {
+            "height": 600,
+            "width": 600
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/600x600/48cb9c0f-5e61-4fe1-a63a-24ea5cfa4786.webp"
+        },
+        {
+          "alt": "Et lyst køkken-alrum med et træbord og fire stole. Bordet er pyntet med blomster. Køkkenet har hvide vægskabe, en stor køleskab, og vinduer med udsigt til en have.",
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/case/f2687747-0bd7-4ded-aa4c-8dc123b9e624/1440x960/48cb9c0f-5e61-4fe1-a63a-24ea5cfa4786.webp"
+        }
+      ]
+    }
+  ],
+  "lotArea": 816,
+  "monthlyExpense": 3210,
+  "nextOpenHouse": {
+    "date": "2025-10-08T08:00:00Z",
+    "duration": 420,
+    "signUp": true,
+    "signUpUrl": "http://www.edc.dk/36009710?aid=5f6e461c-98fc-4d80-97e9-b52bf08202b2"
+  },
+  "numberOfBathrooms": 1,
+  "numberOfFloors": 1,
+  "numberOfRooms": 5,
+  "numberOfToilets": 1,
+  "perAreaPrice": 18168,
+  "priceCash": 2995000,
+  "priceChangePercentage": -7.7,
+  "providerCaseID": "36009710",
+  "realEstate": {
+    "downPayment": 150000,
+    "grossMortgage": 16236,
+    "netMortgage": 12970
+  },
+  "realtor": {
+    "_links": {
+      "self": {
+        "href": "/realtors/e09560ae-906d-486c-b2ba-a57e1e06f211"
+      }
+    },
+    "address": {
+      "city": {
+        "name": "Frederikssund",
+        "slug": "frederikssund"
+      },
+      "municipality": {
+        "municipalityCode": 250,
+        "name": "Frederikssund",
+        "slug": "frederikssund"
+      }
+    },
+    "associationOfDanishRealtorsMember": true,
+    "associationOfEloMember": false,
+    "broadcast": {
+      "percentage": 92.15,
+      "target": 80
+    },
+    "contactInformation": {
+      "cityName": "Frederikssund",
+      "cvr": "37197017",
+      "email": "360@edc.dk",
+      "floor": "st",
+      "houseNumber": "1A",
+      "phone": "47310098",
+      "roadName": "Ny Østergade",
+      "zipCode": 3600
+    },
+    "descriptionBody": "EDC Poul Erik Bech, Frederikssund er en del af Danmarks største og eneste landsdækkende mæglervirksomhed. Via vores store netværk af boligbutikker har vi kontakt til købere over hele landet, hvilket giver dig en markant øget chance for at sælge din bolig til den bedste pris, idet køberen ofte findes uden for lokalområdet.",
+    "image": {
+      "imageSources": [
+        {
+          "size": {
+            "height": 960,
+            "width": 1440
+          },
+          "url": "https://images.boligsiden.dk/images/realtor_image/e09560ae-906d-486c-b2ba-a57e1e06f211/1440x960/69f97b28-b132-49a2-8f12-435940f4509d.webp"
+        }
+      ]
+    },
+    "isNew": false,
+    "name": "EDC Poul Erik Bech",
+    "numberOfEmployees": 12,
+    "numberOfRealtors": 11,
+    "preferred": true,
+    "rating": {
+      "buyer": {
+        "basis": 35,
+        "score": 8.34,
+        "state": "valid"
+      },
+      "seller": {
+        "basis": 62,
+        "score": 8.89,
+        "state": "valid"
+      }
+    },
+    "ratings": {
+      "buyer": {
+        "questions": [
+          {
+            "scores": {
+              "province": {
+                "basis": 947,
+                "score": 8.45
+              },
+              "realtor": {
+                "basis": 36,
+                "score": 8.25,
+                "state": "valid"
+              }
+            },
+            "text": "I hvilken grad var salgsmaterialet (salgsopstilling, præsentation på nettet mv.) dækkende for boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 981,
+                "score": 8.17
+              },
+              "realtor": {
+                "basis": 37,
+                "score": 7.46,
+                "state": "valid"
+              }
+            },
+            "text": "I hvilken grad havde ejendomsmægleren et godt kendskab til boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 980,
+                "score": 8.8
+              },
+              "realtor": {
+                "basis": 37,
+                "score": 8.27,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med fremvisningen/fremvisningerne af boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 985,
+                "score": 8.51
+              },
+              "realtor": {
+                "basis": 37,
+                "score": 7.97,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med ejendomsmæglerens information om processen i forbindelse med købsaftalens indgåelse?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 984,
+                "score": 8.6
+              },
+              "realtor": {
+                "basis": 37,
+                "score": 8.16,
+                "state": "valid"
+              }
+            },
+            "text": "Ud fra dine samlede erfaringer, hvor tilfreds er du så alt i alt med mæglerforretningen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 956,
+                "score": 8.64
+              },
+              "realtor": {
+                "basis": 35,
+                "score": 8.34,
+                "state": "valid"
+              }
+            },
+            "text": "Vil du anbefale mæglerforretningen til andre?"
+          }
+        ]
+      },
+      "seller": {
+        "questions": [
+          {
+            "scores": {
+              "province": {
+                "basis": 2140,
+                "score": 8.92
+              },
+              "realtor": {
+                "basis": 61,
+                "score": 8.2,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med rådgivningen i forbindelse med prisfastsættelsen på boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2086,
+                "score": 8.88
+              },
+              "realtor": {
+                "basis": 61,
+                "score": 8.23,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med, hvordan du blev informeret om, hvor lang tid det ville tage at sælge boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2127,
+                "score": 9.05
+              },
+              "realtor": {
+                "basis": 62,
+                "score": 8.24,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med gennemgangen af de handelsdokumenter (formidlingsaftale, købsaftale, salgsprovenu), som ejendomsmægleren udarbejdede i forbindelse med salget af boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2069,
+                "score": 9.03
+              },
+              "realtor": {
+                "basis": 61,
+                "score": 8.41,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med den aftalte markedsføring af boligen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2142,
+                "score": 9.15
+              },
+              "realtor": {
+                "basis": 62,
+                "score": 8.44,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med den løbende orientering under salgsforløbet?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2122,
+                "score": 9.18
+              },
+              "realtor": {
+                "basis": 61,
+                "score": 8.3,
+                "state": "valid"
+              }
+            },
+            "text": "Hvor tilfreds eller utilfreds var du med ejendomsmæglerens rådgivning i forbindelse med den afsluttende forhandling?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2096,
+                "score": 8.97
+              },
+              "realtor": {
+                "basis": 61,
+                "score": 8.31,
+                "state": "valid"
+              }
+            },
+            "text": "I hvilken grad forklarede ejendomsmægleren sammensætningen af salgsomkostningerne (salær, offentlige omkostninger, osv.) ved handlen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2070,
+                "score": 8.6
+              },
+              "realtor": {
+                "basis": 60,
+                "score": 7.57,
+                "state": "valid"
+              }
+            },
+            "text": "I hvilken grad var prisen på ejendomsmæglerens ydelse passende?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2147,
+                "score": 9.33
+              },
+              "realtor": {
+                "basis": 62,
+                "score": 8.71,
+                "state": "valid"
+              }
+            },
+            "text": "Ud fra dine samlede erfaringer, hvor tilfreds er du så alt i alt med mæglerforretningen?"
+          },
+          {
+            "scores": {
+              "province": {
+                "basis": 2130,
+                "score": 9.55
+              },
+              "realtor": {
+                "basis": 62,
+                "score": 8.89,
+                "state": "valid"
+              }
+            },
+            "text": "Vil du anbefale mæglerforretningen til andre?"
+          }
+        ]
+      }
+    },
+    "realtorBranch": {
+      "logo": {
+        "imageSources": [
+          {
+            "size": {
+              "height": 40,
+              "width": 60
+            },
+            "url": "https://images.boligsiden.dk/images/realtor_branch/e41ed743-f5a5-44ed-9d42-073e35132534/60x40/8096bed9-4bca-4a4f-b46c-323f7748627b.gif"
+          }
+        ]
+      },
+      "name": "EDC",
+      "realtorBranchID": "e41ed743-f5a5-44ed-9d42-073e35132534"
+    },
+    "realtorID": "e09560ae-906d-486c-b2ba-a57e1e06f211",
+    "salesPercentages": {
+      "all": [
+        {
+          "salesPercentage": 90.36
+        },
+        {
+          "addressType": "villa apartment",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday plot",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday house",
+          "salesPercentage": 88.11
+        },
+        {
+          "addressType": "condo",
+          "salesPercentage": 93.33
+        },
+        {
+          "addressType": "full year plot",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "salesPercentage": 92.31
+        },
+        {
+          "addressType": "villa",
+          "salesPercentage": 89.53
+        }
+      ],
+      "city": [
+        {
+          "locationName": "Slangerup",
+          "locationType": "city",
+          "salesPercentage": 95.74
+        },
+        {
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 78.26
+        },
+        {
+          "locationName": "Skævinge",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Jægerspris",
+          "locationType": "city",
+          "salesPercentage": 89.2
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Jægerspris",
+          "locationType": "city",
+          "salesPercentage": 89.06
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Frederikssund",
+          "locationType": "city",
+          "salesPercentage": 90.14
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "Frederikssund",
+          "locationType": "city",
+          "salesPercentage": 93.1
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 72.73
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Frederiksværk",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "condo",
+          "locationName": "Frederikssund",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "Frederikssund",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "Jægerspris",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Kirke Hyllinge",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Ølsted",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "condo",
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 50
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday plot",
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Slangerup",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Skibby",
+          "locationType": "city",
+          "salesPercentage": 77.78
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Skævinge",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa apartment",
+          "locationName": "Frederikssund",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Slangerup",
+          "locationType": "city",
+          "salesPercentage": 96.77
+        },
+        {
+          "addressType": "condo",
+          "locationName": "Hillerød",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Frederikssund",
+          "locationType": "city",
+          "salesPercentage": 93.57
+        },
+        {
+          "locationName": "Frederiksværk",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Hillerød",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Kirke Hyllinge",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Ølsted",
+          "locationType": "city",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "Jægerspris",
+          "locationType": "city",
+          "salesPercentage": 83.33
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Jægerspris",
+          "locationType": "city",
+          "salesPercentage": 89.74
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "Slangerup",
+          "locationType": "city",
+          "salesPercentage": 92.31
+        }
+      ],
+      "municipality": [
+        {
+          "locationName": "Hillerød",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 90.07
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 87.77
+        },
+        {
+          "locationName": "Egedal",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Halsnæs",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Egedal",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday plot",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Halsnæs",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Hillerød",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Lejre",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 89.09
+        },
+        {
+          "addressType": "condo",
+          "locationName": "Hillerød",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa apartment",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Halsnæs",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "Lejre",
+          "locationType": "municipality",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 92.31
+        },
+        {
+          "addressType": "condo",
+          "locationName": "Frederikssund",
+          "locationType": "municipality",
+          "salesPercentage": 92.86
+        }
+      ],
+      "province": [
+        {
+          "addressType": "terraced house",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 92.31
+        },
+        {
+          "addressType": "condo",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 93.33
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday plot",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Østsjælland",
+          "locationType": "province",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa apartment",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 89.41
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 88.11
+        },
+        {
+          "locationName": "Nordsjælland",
+          "locationType": "province",
+          "salesPercentage": 90.31
+        },
+        {
+          "locationName": "Østsjælland",
+          "locationType": "province",
+          "salesPercentage": 100
+        }
+      ],
+      "zip_code": [
+        {
+          "locationName": "3630",
+          "locationType": "zip_code",
+          "salesPercentage": 89.2
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "3630",
+          "locationType": "zip_code",
+          "salesPercentage": 89.06
+        },
+        {
+          "locationName": "3600",
+          "locationType": "zip_code",
+          "salesPercentage": 93.57
+        },
+        {
+          "locationName": "3300",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "3550",
+          "locationType": "zip_code",
+          "salesPercentage": 92.31
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "3310",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "3550",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "condo",
+          "locationName": "3600",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "3600",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "3630",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "condo",
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 50
+        },
+        {
+          "addressType": "full year plot",
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "holiday plot",
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "4070",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 77.78
+        },
+        {
+          "addressType": "villa apartment",
+          "locationName": "3600",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "condo",
+          "locationName": "3400",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "3600",
+          "locationType": "zip_code",
+          "salesPercentage": 93.1
+        },
+        {
+          "locationName": "3310",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "3320",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "3400",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "locationName": "3550",
+          "locationType": "zip_code",
+          "salesPercentage": 95.74
+        },
+        {
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 78.26
+        },
+        {
+          "locationName": "4070",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "terraced house",
+          "locationName": "3630",
+          "locationType": "zip_code",
+          "salesPercentage": 83.33
+        },
+        {
+          "addressType": "villa",
+          "locationName": "3300",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        },
+        {
+          "addressType": "villa",
+          "locationName": "3630",
+          "locationType": "zip_code",
+          "salesPercentage": 89.74
+        },
+        {
+          "addressType": "villa",
+          "locationName": "3600",
+          "locationType": "zip_code",
+          "salesPercentage": 90.14
+        },
+        {
+          "addressType": "holiday house",
+          "locationName": "4050",
+          "locationType": "zip_code",
+          "salesPercentage": 72.73
+        },
+        {
+          "addressType": "villa",
+          "locationName": "3550",
+          "locationType": "zip_code",
+          "salesPercentage": 96.77
+        },
+        {
+          "addressType": "villa",
+          "locationName": "3320",
+          "locationType": "zip_code",
+          "salesPercentage": 100
+        }
+      ]
+    },
+    "slug": "edc-poul-erik-bech-ny-oestergade-1a-3600-frederikssund-e09560ae906d486cb2baa57e1e06f211",
+    "url": "https://www.edc.dk/ejendomsmaegler/frederikssund/poul-erik-bech"
+  },
+  "slug": "degnebakken-24-4050-skibby-02500207__24_______",
+  "slugAddress": "degnebakken-24-4050-skibby",
+  "status": "open",
+  "timeOnMarket": {
+    "current": {
+      "days": 189
+    },
+    "total": {
+      "days": 189,
+      "realtors": [
+        {
+          "days": 189,
+          "realtorId": "e09560ae-906d-486c-b2ba-a57e1e06f211",
+          "realtorName": "EDC Poul Erik Bech"
+        }
+      ]
+    }
+  },
+  "utilitiesConnectionFee": {
+    "includedInPrice": null
+  },
+  "weightedArea": 164.85,
+  "yearBuilt": 1953
+}

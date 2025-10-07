@@ -1,0 +1,268 @@
+```
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    FLOOR PLAN SCRAPING SYSTEM ARCHITECTURE                     ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                             INPUT DATA SOURCES                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+    │  PostgreSQL DB  │         │   CSV File      │         │  Manual URLs    │
+    │  361,232 props  │   OR    │  Property IDs   │   OR    │  Single tests   │
+    └────────┬────────┘         └────────┬────────┘         └────────┬────────┘
+             │                           │                           │
+             └───────────────────────────┴───────────────────────────┘
+                                         │
+                                         ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            SCRAPER SELECTION                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+         ┌────────────────────┬────────────────────┬────────────────────┐
+         │                    │                    │                    │
+         ▼                    ▼                    ▼                    ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│ Availability     │  │ Test Scraper     │  │ Simple Scraper   │  │ Advanced Scraper │
+│ Checker          │  │                  │  │                  │  │ ⭐ RECOMMENDED   │
+├──────────────────┤  ├──────────────────┤  ├──────────────────┤  ├──────────────────┤
+│ • Quick check    │  │ • 1-3 props      │  │ • Basic          │  │ • Production     │
+│ • No downloads   │  │ • Visual debug   │  │ • Learning       │  │ • Full features  │
+│ • Statistics     │  │ • Validation     │  │ • Simple code    │  │ • Batch mode     │
+│ • CSV output     │  │ • Browser visible│  │                  │  │ • DB integration │
+└────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
+         │                     │                     │                     │
+         └─────────────────────┴─────────────────────┴─────────────────────┘
+                                         │
+                                         ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          SELENIUM BROWSER AUTOMATION                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌────────────────────────────────────────────────────────────────────┐
+    │  ChromeDriver (auto-installed via webdriver-manager)              │
+    └────────────┬───────────────────────────────────────────────────────┘
+                 │
+                 ▼
+    ┌────────────────────────────────────────────────────────────────────┐
+    │  Chrome Browser (Headless or Visible)                             │
+    │  • User-Agent: Mozilla/5.0...                                      │
+    │  • Window: 1920x1080                                               │
+    │  • JavaScript: Enabled                                             │
+    └────────────┬───────────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         SCRAPING PROCESS FLOW                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    1. LOAD PAGE
+       │
+       │  browser.get("https://www.boligsiden.dk/addresses/{property_id}")
+       │  sleep(3 seconds)
+       │
+       ▼
+    2. TAKE SCREENSHOT (for debugging)
+       │
+       │  save_screenshot("{property_id}_page_screenshot.png")
+       │
+       ▼
+    3. TRY TO FIND & CLICK "PLANTEGNINGER" BUTTON
+       │
+       │  ┌─────────────────────────────────────────────────────┐
+       │  │ Try Pattern 1: XPath button with "PLANTEGNINGER"    │
+       │  │ Try Pattern 2: Link with "plantegning"              │
+       │  │ Try Pattern 3: Case-insensitive match               │
+       │  │ Try Pattern 4: Data attributes                      │
+       │  │ Try Pattern 5-8: More variations...                 │
+       │  │ ✓ FOUND → Click button → Wait 2 seconds            │
+       │  │ ✗ NOT FOUND → Continue to direct image search      │
+       │  └─────────────────────────────────────────────────────┘
+       │
+       ▼
+    4. EXTRACT FLOOR PLAN IMAGES
+       │
+       │  ┌─────────────────────────────────────────────────────┐
+       │  │ Strategy A: Images with "plantegning" in src/alt    │
+       │  │ Strategy B: Images in modal/lightbox containers     │
+       │  │ Strategy C: Gallery images                          │
+       │  │ Strategy D: PDF links with "plantegning"            │
+       │  │                                                      │
+       │  │ Filter: Remove images < 100x100px (icons)           │
+       │  │ Result: List of image URLs                          │
+       │  └─────────────────────────────────────────────────────┘
+       │
+       ▼
+    5. DOWNLOAD EACH IMAGE
+       │
+       │  For each URL:
+       │  ┌─────────────────────────────────────────────────────┐
+       │  │ Attempt 1: requests.get(url)                        │
+       │  │   ✓ Success → Save file → Next image               │
+       │  │   ✗ Failed → Wait 2 sec → Attempt 2                │
+       │  │ Attempt 2: requests.get(url)                        │
+       │  │   ✓ Success → Save file → Next image               │
+       │  │   ✗ Failed → Wait 2 sec → Attempt 3                │
+       │  │ Attempt 3: requests.get(url)                        │
+       │  │   ✓ Success → Save file → Next image               │
+       │  │   ✗ Failed → Log error → Skip this image           │
+       │  └─────────────────────────────────────────────────────┘
+       │
+       ▼
+    6. SAVE METADATA
+       │
+       │  Update results JSON with:
+       │  • Property ID
+       │  • Success/failure
+       │  • Downloaded files
+       │  • URLs
+       │  • File sizes
+       │  • Errors
+       │
+       ▼
+    7. MOVE TO NEXT PROPERTY
+       │
+       │  Wait 3 seconds (politeness)
+       │  Continue loop...
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              OUTPUT FILES                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    ┌───────────────────────┐
+    │  floor_plans/         │
+    └───────┬───────────────┘
+            │
+            ├─► {property_id}_floorplan_00.jpg     ┐
+            ├─► {property_id}_floorplan_01.jpg     │ Floor Plan
+            ├─► {property_id}_floorplan_02.pdf     │ Images
+            ├─► ...                                 ┘
+            │
+            ├─► {property_id}_page_screenshot.png  ┐ Debug
+            ├─► ...                                 ┘ Screenshots
+            │
+            ├─► scraping_results_20241004.json     ┐ Metadata
+            │   {                                   │
+            │     "property_id": "abc-123",         │
+            │     "success": true,                  │
+            │     "floor_plans": [                  │
+            │       {                                │
+            │         "filename": "...",             │
+            │         "size": 245678,                │
+            │         "url": "https://..."           │
+            │       }                                │
+            │     ]                                  │
+            │   }                                    ┘
+            │
+            └─► floor_plan_scraper.log              ┐ Detailed
+                2024-10-04 14:30:22 - INFO - ...    │ Logs
+                2024-10-04 14:30:25 - ERROR - ...   ┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          SUCCESS RATE TRACKING                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    Input: 100 properties
+         │
+         ├─► 65 properties: Floor plans found (65%)
+         │        │
+         │        ├─► Downloaded: 92 images
+         │        └─► Average: 1.4 images per property
+         │
+         └─► 35 properties: No floor plans (35%)
+                  │
+                  ├─► 20 properties: Genuinely don't have floor plans
+                  ├─► 10 properties: Pattern not detected (improve patterns)
+                  └─►  5 properties: Network errors (retry later)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           BATCH PROCESSING                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    Total Properties: 361,232
+         │
+         ├─► Batch 1: Props 0-999       (offset=0,    limit=1000)
+         │      │
+         │      ├─► Scrape → 50 minutes
+         │      └─► Break → 5 minutes
+         │
+         ├─► Batch 2: Props 1000-1999   (offset=1000, limit=1000)
+         │      │
+         │      ├─► Scrape → 50 minutes
+         │      └─► Break → 5 minutes
+         │
+         ├─► Batch 3: Props 2000-2999   (offset=2000, limit=1000)
+         │      ⋮
+         │
+         └─► Batch 362: Props 361000-361232 (offset=361000, limit=232)
+                │
+                └─► Complete! (~300 hours total)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                      MULTI-PATTERN DETECTION SYSTEM                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    Property Page HTML (varies by agent)
+         │
+         │
+    ┌────▼─────────────────────────────────────────────────────────────────┐
+    │  Agent A Layout                                                       │
+    │  <button class="tab">PLANTEGNINGER</button>                          │
+    │  <div class="floor-plans">                                            │
+    │    <img src="https://.../plantegning1.jpg" alt="Floor plan">        │
+    │  </div>                                                               │
+    └───────────────────────────────────────────────────────────────────────┘
+         │
+         ├─► Pattern Match: ✓ Button found
+         ├─► Pattern Match: ✓ Images found
+         └─► Download: SUCCESS
+    
+    ┌────▼─────────────────────────────────────────────────────────────────┐
+    │  Agent B Layout                                                       │
+    │  <a href="#" data-tab="plantegning">Plantegninger</a>                │
+    │  <div class="gallery">                                                │
+    │    <img src="https://.../floor1.png">                                │
+    │  </div>                                                               │
+    └───────────────────────────────────────────────────────────────────────┘
+         │
+         ├─► Pattern Match: ✓ Link found (data-tab)
+         ├─► Pattern Match: ✓ Gallery images
+         └─► Download: SUCCESS
+    
+    ┌────▼─────────────────────────────────────────────────────────────────┐
+    │  Agent C Layout                                                       │
+    │  <span class="tab-label">Floor Plans</span>                          │
+    │  <a href="https://.../floorplan.pdf">Download PDF</a>                │
+    └───────────────────────────────────────────────────────────────────────┘
+         │
+         ├─► Pattern Match: ✓ English text found
+         ├─► Pattern Match: ✓ PDF link found
+         └─► Download: SUCCESS (PDF)
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                              SYSTEM FEATURES                                   ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+    ✅ Autonomous Operation      ✅ Error Recovery          ✅ Progress Tracking
+    ✅ Multi-Layout Support      ✅ Retry Logic             ✅ Detailed Logging
+    ✅ Batch Processing          ✅ Resume Capability       ✅ Success Rate Metrics
+    ✅ Database Integration      ✅ Debug Screenshots       ✅ JSON Metadata
+    ✅ Rate Limiting             ✅ Multiple File Formats   ✅ Headless Mode
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                            USAGE EXAMPLES                                      ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+    # Quick availability check (no downloads)
+    python check_floor_plan_availability.py --sample 50
+    
+    # Test on 3 properties
+    python test_floor_plan_scraper.py csv
+    
+    # Production scrape: 1000 properties, headless mode
+    python scrape_floor_plans_advanced.py --limit 1000 --headless
+    
+    # Resume from property 5000
+    python scrape_floor_plans_advanced.py --limit 1000 --offset 5000 --headless
+
+```

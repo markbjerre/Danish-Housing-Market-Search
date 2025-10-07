@@ -1,0 +1,149 @@
+,Municipality,Property_type,Year,Price_min,Price_max,Size_min,Size_max,totalhits,number_of_pages
+0,København,villa,2023,nothing,nothing,nothing,nothing,659,33
+1,København,villa,2022,nothing,nothing,nothing,nothing,447,23
+2,København,villa,2021,nothing,nothing,nothing,nothing,709,36
+3,København,villa,2020,nothing,nothing,nothing,nothing,772,39
+4,København,villa,2019,nothing,nothing,nothing,nothing,640,32
+5,København,villa,2018,nothing,nothing,nothing,nothing,692,35
+6,København,villa,2017,nothing,nothing,nothing,nothing,761,39
+7,København,villa,2016,nothing,nothing,nothing,nothing,739,37
+8,København,villa,2015,nothing,nothing,nothing,nothing,746,38
+9,København,villa,2014,nothing,nothing,nothing,nothing,724,37
+10,København,villa,2013,nothing,nothing,nothing,nothing,680,34
+11,København,condo,2023,nothing,nothing,nothing,nothing,6919,346
+12,København,condo,2022,nothing,nothing,nothing,nothing,5534,277
+13,København,condo,2021,nothing,nothing,nothing,nothing,9252,463
+14,København,condo,2020,nothing,nothing,nothing,nothing,8431,422
+15,København,condo,2019,nothing,nothing,nothing,nothing,7191,360
+16,København,condo,2018,nothing,nothing,nothing,nothing,7807,391
+17,København,condo,2017,nothing,nothing,nothing,nothing,8997,450
+18,København,condo,2016,nothing,nothing,nothing,nothing,8449,423
+19,København,condo,2015,nothing,nothing,nothing,nothing,9089,455
+20,København,condo,2014,nothing,nothing,nothing,nothing,7337,367
+21,København,condo,2013,nothing,nothing,nothing,nothing,5668,284
+22,København,terraced house,nothing,nothing,nothing,nothing,nothing,5363,269
+23,Frederiksberg,villa,nothing,nothing,nothing,nothing,nothing,807,41
+24,Frederiksberg,condo,2023,nothing,nothing,nothing,nothing,1377,69
+25,Frederiksberg,condo,2022,nothing,nothing,nothing,nothing,1074,54
+26,Frederiksberg,condo,2021,nothing,nothing,nothing,nothing,1589,80
+27,Frederiksberg,condo,2020,nothing,nothing,nothing,nothing,1625,82
+28,Frederiksberg,condo,2019,nothing,nothing,nothing,nothing,1502,76
+29,Frederiksberg,condo,2018,nothing,nothing,nothing,nothing,1518,76
+30,Frederiksberg,condo,2017,nothing,nothing,nothing,nothing,1687,85
+31,Frederiksberg,condo,2016,nothing,nothing,nothing,nothing,1610,81
+32,Frederiksberg,condo,2015,nothing,nothing,nothing,nothing,1632,82
+33,Frederiksberg,condo,2014,nothing,nothing,nothing,nothing,1509,76
+34,Frederiksberg,condo,2013,nothing,nothing,nothing,nothing,1282,65
+35,Frederiksberg,terraced house,nothing,nothing,nothing,nothing,nothing,473,24
+36,Gentofte,villa,nothing,nothing,nothing,nothing,nothing,8365,419
+37,Gentofte,condo,nothing,nothing,nothing,nothing,nothing,7801,391
+38,Gentofte,terraced house,nothing,nothing,nothing,nothing,nothing,1745,88
+39,Gladsaxe,villa,nothing,nothing,nothing,nothing,nothing,5284,265
+40,Gladsaxe,condo,nothing,nothing,nothing,nothing,nothing,3580,179
+41,Gladsaxe,terraced house,nothing,nothing,nothing,nothing,nothing,2567,129
+42,Hvidovre,villa,nothing,nothing,nothing,nothing,nothing,5458,273
+43,Hvidovre,condo,nothing,nothing,nothing,nothing,nothing,1494,75
+44,Hvidovre,terraced house,nothing,nothing,nothing,nothing,nothing,1205,61
+45,Tårnby,villa,nothing,nothing,nothing,nothing,nothing,5302,266
+46,Tårnby,condo,nothing,nothing,nothing,nothing,nothing,1395,70
+47,Tårnby,terraced house,nothing,nothing,nothing,nothing,nothing,1248,63
+48,Rødovre,villa,nothing,nothing,nothing,nothing,nothing,3195,160
+49,Rødovre,condo,nothing,nothing,nothing,nothing,nothing,2173,109
+50,Rødovre,terraced house,nothing,nothing,nothing,nothing,nothing,1701,86
+51,Herlev,villa,nothing,nothing,nothing,nothing,nothing,2250,113
+52,Herlev,condo,nothing,nothing,nothing,nothing,nothing,280,14
+53,Herlev,terraced house,nothing,nothing,nothing,nothing,nothing,1007,51
+54,Ballerup,villa,nothing,nothing,nothing,nothing,nothing,4856,243
+55,Ballerup,condo,nothing,nothing,nothing,nothing,nothing,818,41
+56,Ballerup,terraced house,nothing,nothing,nothing,nothing,nothing,945,48
+57,Brøndby,villa,nothing,nothing,nothing,nothing,nothing,2586,130
+58,Brøndby,condo,nothing,nothing,nothing,nothing,nothing,271,14
+59,Brøndby,terraced house,nothing,nothing,nothing,nothing,nothing,1009,51
+60,Albertslund,villa,nothing,nothing,nothing,nothing,nothing,1150,58
+61,Albertslund,condo,nothing,nothing,nothing,nothing,nothing,526,27
+62,Albertslund,terraced house,nothing,nothing,nothing,nothing,nothing,1679,84
+63,Glostrup,villa,nothing,nothing,nothing,nothing,nothing,1987,100
+64,Glostrup,condo,nothing,nothing,nothing,nothing,nothing,1075,54
+65,Glostrup,terraced house,nothing,nothing,nothing,nothing,nothing,515,26
+66,Dragør,villa,nothing,nothing,nothing,nothing,nothing,2413,121
+67,Dragør,condo,nothing,nothing,nothing,nothing,nothing,309,16
+68,Dragør,terraced house,nothing,nothing,nothing,nothing,nothing,915,46
+69,Vallensbæk,villa,nothing,nothing,nothing,nothing,nothing,1520,76
+70,Vallensbæk,condo,nothing,nothing,nothing,nothing,nothing,1222,62
+71,Vallensbæk,terraced house,nothing,nothing,nothing,nothing,nothing,1216,61
+72,Ishøj,villa,nothing,nothing,nothing,nothing,nothing,1401,71
+73,Ishøj,condo,nothing,nothing,nothing,nothing,nothing,996,50
+74,Ishøj,terraced house,nothing,nothing,nothing,nothing,nothing,1096,55
+75,Lyngby-Taarbæk,villa,nothing,nothing,nothing,nothing,nothing,4975,249
+76,Lyngby-Taarbæk,condo,nothing,nothing,nothing,nothing,nothing,3587,180
+77,Lyngby-Taarbæk,terraced house,nothing,nothing,nothing,nothing,nothing,3064,154
+78,Rudersdal,villa,nothing,nothing,nothing,nothing,nothing,8572,429
+79,Rudersdal,condo,nothing,nothing,nothing,nothing,nothing,3632,182
+80,Rudersdal,terraced house,nothing,nothing,nothing,nothing,nothing,2147,108
+81,Hørsholm,villa,nothing,nothing,nothing,nothing,nothing,3370,169
+82,Hørsholm,condo,nothing,nothing,nothing,nothing,nothing,1231,62
+83,Hørsholm,terraced house,nothing,nothing,nothing,nothing,nothing,1713,86
+84,Allerød,villa,nothing,nothing,nothing,nothing,nothing,4129,207
+85,Allerød,condo,nothing,nothing,nothing,nothing,nothing,355,18
+86,Allerød,terraced house,nothing,nothing,nothing,nothing,nothing,1672,84
+87,Furesø,villa,nothing,nothing,nothing,nothing,nothing,4831,242
+88,Furesø,condo,nothing,nothing,nothing,nothing,nothing,1491,75
+89,Furesø,terraced house,nothing,nothing,nothing,nothing,nothing,3101,156
+90,Fredensborg,villa,nothing,nothing,nothing,nothing,nothing,4935,247
+91,Fredensborg,condo,nothing,nothing,nothing,nothing,nothing,1936,97
+92,Fredensborg,terraced house,nothing,nothing,nothing,nothing,nothing,2842,143
+93,Hillerød,villa,nothing,nothing,nothing,nothing,nothing,7805,391
+94,Hillerød,condo,nothing,nothing,nothing,nothing,nothing,1853,93
+95,Hillerød,terraced house,nothing,nothing,nothing,nothing,nothing,2039,102
+96,Høje-Taastrup,villa,nothing,nothing,nothing,nothing,nothing,4576,229
+97,Høje-Taastrup,condo,nothing,nothing,nothing,nothing,nothing,3653,183
+98,Høje-Taastrup,terraced house,nothing,nothing,nothing,nothing,nothing,2888,145
+99,Egedal,villa,nothing,nothing,nothing,nothing,nothing,7120,356
+100,Egedal,condo,nothing,nothing,nothing,nothing,nothing,781,40
+101,Egedal,terraced house,nothing,nothing,nothing,nothing,nothing,3279,164
+102,Frederikssund,villa,nothing,nothing,nothing,nothing,nothing,7875,394
+103,Frederikssund,condo,nothing,nothing,nothing,nothing,nothing,698,35
+104,Frederikssund,terraced house,nothing,nothing,nothing,nothing,nothing,2145,108
+105,Roskilde,villa,2023,nothing,nothing,nothing,nothing,797,40
+106,Roskilde,villa,2022,nothing,nothing,nothing,nothing,688,35
+107,Roskilde,villa,2021,nothing,nothing,nothing,nothing,1090,55
+108,Roskilde,villa,2020,nothing,nothing,nothing,nothing,1091,55
+109,Roskilde,villa,2019,nothing,nothing,nothing,nothing,948,48
+110,Roskilde,villa,2018,nothing,nothing,nothing,nothing,918,46
+111,Roskilde,villa,2017,nothing,nothing,nothing,nothing,914,46
+112,Roskilde,villa,2016,nothing,nothing,nothing,nothing,860,43
+113,Roskilde,villa,2015,nothing,nothing,nothing,nothing,926,47
+114,Roskilde,villa,2014,nothing,nothing,nothing,nothing,758,38
+115,Roskilde,villa,2013,nothing,nothing,nothing,nothing,697,35
+116,Roskilde,condo,nothing,nothing,nothing,nothing,nothing,3648,183
+117,Roskilde,terraced house,nothing,nothing,nothing,nothing,nothing,3305,166
+118,Greve,villa,nothing,nothing,nothing,nothing,nothing,7967,399
+119,Greve,condo,nothing,nothing,nothing,nothing,nothing,696,35
+120,Greve,terraced house,nothing,nothing,nothing,nothing,nothing,2664,134
+121,Solrød,villa,nothing,nothing,nothing,nothing,nothing,4043,203
+122,Solrød,condo,nothing,nothing,nothing,nothing,nothing,701,36
+123,Solrød,terraced house,nothing,nothing,nothing,nothing,nothing,1536,77
+124,Helsingør,villa,nothing,nothing,nothing,nothing,nothing,7941,398
+125,Helsingør,condo,nothing,nothing,nothing,nothing,nothing,3206,161
+126,Helsingør,terraced house,nothing,nothing,nothing,nothing,nothing,2398,120
+127,Gribskov,villa,nothing,nothing,nothing,nothing,nothing,8657,433
+128,Gribskov,condo,nothing,nothing,nothing,nothing,nothing,464,24
+129,Gribskov,terraced house,nothing,nothing,nothing,nothing,nothing,1238,62
+130,Halsnæs,villa,nothing,nothing,nothing,nothing,nothing,6371,319
+131,Halsnæs,condo,nothing,nothing,nothing,nothing,nothing,291,15
+132,Halsnæs,terraced house,nothing,nothing,nothing,nothing,nothing,643,33
+133,Køge,villa,nothing,nothing,nothing,nothing,nothing,9840,492
+134,Køge,condo,nothing,nothing,nothing,nothing,nothing,1642,83
+135,Køge,terraced house,nothing,nothing,nothing,nothing,nothing,1791,90
+136,Lejre,villa,nothing,nothing,nothing,nothing,nothing,6214,311
+137,Lejre,condo,nothing,nothing,nothing,nothing,nothing,56,3
+138,Lejre,terraced house,nothing,nothing,nothing,nothing,nothing,946,48
+139,Stevns,villa,nothing,nothing,nothing,nothing,nothing,5694,285
+140,Stevns,condo,nothing,nothing,nothing,nothing,nothing,125,7
+141,Stevns,terraced house,nothing,nothing,nothing,nothing,nothing,887,45
+142,Faxe,villa,nothing,nothing,nothing,nothing,nothing,8266,414
+143,Faxe,condo,nothing,nothing,nothing,nothing,nothing,135,7
+144,Faxe,terraced house,nothing,nothing,nothing,nothing,nothing,1265,64
+145,Ringsted,villa,nothing,nothing,nothing,nothing,nothing,6211,311
+146,Ringsted,condo,nothing,nothing,nothing,nothing,nothing,838,42
+147,Ringsted,terraced house,nothing,nothing,nothing,nothing,nothing,934,47

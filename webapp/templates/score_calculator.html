@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Score Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 1.1em;
+            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.2);
+            transition: background 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .calculator-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .calculator-panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .weight-controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .weight-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .weight-item h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .weight-value {
+            color: #667eea;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+
+        .weight-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .weight-slider input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .weight-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .weight-slider input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .weight-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .preset-button {
+            flex: 1;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .preset-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .preset-button.secondary {
+            background: #6c757d;
+        }
+
+        .filter-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .filter-section h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .range-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .calculate-button {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.3em;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: transform 0.2s;
+        }
+
+        .calculate-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .results-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .results-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .scored-property {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .scored-property:hover {
+            transform: translateX(5px);
+        }
+
+        .scored-property.top-pick {
+            border-left-color: #4caf50;
+            background: linear-gradient(to right, #e8f5e9 0%, #f8f9fa 100%);
+        }
+
+        .property-info {
+            flex: 1;
+        }
+
+        .property-info h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .property-info p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .score-badge {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .score-badge.excellent {
+            color: #4caf50;
+        }
+
+        .score-badge.good {
+            color: #2196f3;
+        }
+
+        .score-breakdown {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 1024px) {
+            .weight-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .preset-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Property Score Calculator</h1>
+            <p>Customize scoring weights to find your perfect home</p>
+        </div>
+
+        <div class="nav-links">
+            <a href="/">🏠 Property Search</a>
+            <a href="/score-calculator" style="background: rgba(255,255,255,0.3);">🎯 Score Calculator</a>
+        </div>
+
+        <div class="calculator-panel">
+            <h2>Scoring Weights</h2>
+            <p style="color: #666; margin-bottom: 20px;">Adjust the importance of each factor (0-10 scale)</p>
+
+            <div class="preset-buttons">
+                <button class="preset-button" onclick="loadPreset('balanced')">⚖️ Balanced</button>
+                <button class="preset-button" onclick="loadPreset('value')">💰 Value Hunter</button>
+                <button class="preset-button" onclick="loadPreset('luxury')">✨ Luxury Seeker</button>
+                <button class="preset-button" onclick="loadPreset('location')">📍 Location First</button>
+            </div>
+
+            <div class="weight-controls">
+                <div class="weight-item">
+                    <h3>
+                        <span>💵 Price per m²</span>
+                        <span class="weight-value" id="weight-price-value">5</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-price" min="0" max="10" value="5" step="0.5" oninput="updateWeight('price')">
+                    </div>
+                    <p class="weight-description">Lower price per m² = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>📐 Living Area</span>
+                        <span class="weight-value" id="weight-area-value">5</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-area" min="0" max="10" value="5" step="0.5" oninput="updateWeight('area')">
+                    </div>
+                    <p class="weight-description">Larger home = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>📍 Distance to Copenhagen</span>
+                        <span class="weight-value" id="weight-distance-value">5</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-distance" min="0" max="10" value="5" step="0.5" oninput="updateWeight('distance')">
+                    </div>
+                    <p class="weight-description">Closer to city center = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>🏠 Basement Area</span>
+                        <span class="weight-value" id="weight-basement-value">3</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-basement" min="0" max="10" value="3" step="0.5" oninput="updateWeight('basement')">
+                    </div>
+                    <p class="weight-description">More basement space = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>🌳 Plot Size</span>
+                        <span class="weight-value" id="weight-plot-value">4</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-plot" min="0" max="10" value="4" step="0.5" oninput="updateWeight('plot')">
+                    </div>
+                    <p class="weight-description">Larger yard = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>🚿 Bathrooms</span>
+                        <span class="weight-value" id="weight-bathrooms-value">4</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-bathrooms" min="0" max="10" value="4" step="0.5" oninput="updateWeight('bathrooms')">
+                    </div>
+                    <p class="weight-description">More bathrooms = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>🔧 Year Renovated</span>
+                        <span class="weight-value" id="weight-renovation-value">4</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-renovation" min="0" max="10" value="4" step="0.5" oninput="updateWeight('renovation')">
+                    </div>
+                    <p class="weight-description">Recent renovation = higher score</p>
+                </div>
+
+                <div class="weight-item">
+                    <h3>
+                        <span>⚡ Energy Label</span>
+                        <span class="weight-value" id="weight-energy-value">3</span>
+                    </h3>
+                    <div class="weight-slider">
+                        <input type="range" id="weight-energy" min="0" max="10" value="3" step="0.5" oninput="updateWeight('energy')">
+                    </div>
+                    <p class="weight-description">Better energy rating = higher score</p>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h3>📋 Base Filters (Optional)</h3>
+                <p style="color: #666; margin-bottom: 20px;">Set minimum requirements to filter properties before scoring</p>
+
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>💰 Max Price (DKK)</label>
+                        <input type="number" id="filter-max-price" placeholder="e.g., 5000000" step="100000">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>📐 Min Living Area (m²)</label>
+                        <input type="number" id="filter-min-area" placeholder="e.g., 150" step="10">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>📍 Max Distance (km)</label>
+                        <input type="number" id="filter-max-distance" placeholder="e.g., 30" step="5">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>🛏️ Min Rooms</label>
+                        <input type="number" id="filter-min-rooms" placeholder="e.g., 4" step="1">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>🚿 Min Bathrooms</label>
+                        <input type="number" id="filter-min-bathrooms" placeholder="e.g., 2" step="1">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>🏛️ Municipality</label>
+                        <select id="filter-municipality">
+                            <option value="all">All Municipalities</option>
+                            {% for muni in municipalities %}
+                            <option value="{{ muni }}">{{ muni }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="calculate-button" onclick="calculateScores()">🎯 Calculate Property Scores</button>
+        </div>
+
+        <div class="results-section" id="results">
+            <h2>📊 Top Scoring Properties</h2>
+            <div id="results-content" class="results-grid">
+                <div class="loading">Calculating scores...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COPENHAGEN_LAT = 55.6761;
+        const COPENHAGEN_LON = 12.5683;
+
+        // Update weight display
+        function updateWeight(type) {
+            const slider = document.getElementById(`weight-${type}`);
+            const display = document.getElementById(`weight-${type}-value`);
+            display.textContent = slider.value;
+        }
+
+        // Load preset weights
+        function loadPreset(preset) {
+            const presets = {
+                balanced: { price: 5, area: 5, distance: 5, basement: 3, plot: 4, bathrooms: 4, renovation: 4, energy: 3 },
+                value: { price: 10, area: 6, distance: 3, basement: 2, plot: 3, bathrooms: 3, renovation: 2, energy: 5 },
+                luxury: { price: 2, area: 9, distance: 8, basement: 7, plot: 8, bathrooms: 9, renovation: 8, energy: 4 },
+                location: { price: 4, area: 5, distance: 10, basement: 2, plot: 3, bathrooms: 5, renovation: 5, energy: 4 }
+            };
+
+            const weights = presets[preset];
+            for (const [key, value] of Object.entries(weights)) {
+                document.getElementById(`weight-${key}`).value = value;
+                updateWeight(key);
+            }
+        }
+
+        // Calculate distance
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Calculate scores
+        async function calculateScores() {
+            const resultsSection = document.getElementById('results');
+            const resultsContent = document.getElementById('results-content');
+            
+            resultsSection.classList.add('active');
+            resultsContent.innerHTML = '<div class="loading">🔄 Fetching properties and calculating scores...</div>';
+
+            // Get weights
+            const weights = {
+                price: parseFloat(document.getElementById('weight-price').value),
+                area: parseFloat(document.getElementById('weight-area').value),
+                distance: parseFloat(document.getElementById('weight-distance').value),
+                basement: parseFloat(document.getElementById('weight-basement').value),
+                plot: parseFloat(document.getElementById('weight-plot').value),
+                bathrooms: parseFloat(document.getElementById('weight-bathrooms').value),
+                renovation: parseFloat(document.getElementById('weight-renovation').value),
+                energy: parseFloat(document.getElementById('weight-energy').value),
+            };
+
+            // Get filters
+            const filters = {
+                max_price: document.getElementById('filter-max-price').value,
+                min_area: document.getElementById('filter-min-area').value,
+                max_distance: document.getElementById('filter-max-distance').value,
+                min_rooms: document.getElementById('filter-min-rooms').value,
+                min_bathrooms: document.getElementById('filter-min-bathrooms').value,
+                municipality: document.getElementById('filter-municipality').value,
+            };
+
+            try {
+                // Fetch properties (get more to ensure good results)
+                const params = new URLSearchParams({
+                    municipality: filters.municipality || 'all',
+                    max_price: filters.max_price || '',
+                    min_area: filters.min_area || '',
+                    min_rooms: filters.min_rooms || '',
+                    page: 1,
+                    per_page: 100
+                });
+
+                const response = await fetch(`/search?${params}`);
+                const data = await response.json();
+
+                if (data.results.length === 0) {
+                    resultsContent.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No properties found matching your filters.</p>';
+                    return;
+                }
+
+                // Calculate scores for each property
+                const scoredProperties = data.results.map(prop => {
+                    let score = 0;
+                    let scoreDetails = [];
+
+                    // Price per m² (lower is better, normalized 0-10)
+                    if (prop.price_per_sqm && weights.price > 0) {
+                        const priceScore = Math.max(0, 10 - (prop.price_per_sqm / 10000)); // Assume 100k/m² is max
+                        score += priceScore * weights.price;
+                        scoreDetails.push(`Price: ${priceScore.toFixed(1)}`);
+                    }
+
+                    // Living area (larger is better, normalized 0-10)
+                    if (prop.living_area && weights.area > 0) {
+                        const areaScore = Math.min(10, prop.living_area / 30); // 300m² = 10 points
+                        score += areaScore * weights.area;
+                        scoreDetails.push(`Area: ${areaScore.toFixed(1)}`);
+                    }
+
+                    // Distance (closer is better)
+                    if (prop.latitude && prop.longitude && weights.distance > 0) {
+                        const distance = calculateDistance(COPENHAGEN_LAT, COPENHAGEN_LON, prop.latitude, prop.longitude);
+                        const distanceScore = Math.max(0, 10 - (distance / 6)); // 60km = 0 points
+                        score += distanceScore * weights.distance;
+                        scoreDetails.push(`Distance: ${distanceScore.toFixed(1)}`);
+                    }
+
+                    // Energy label
+                    if (prop.energy_label && weights.energy > 0) {
+                        const energyScores = { a: 10, b: 8, c: 6, d: 4, e: 2, f: 1, g: 0 };
+                        const energyScore = energyScores[prop.energy_label.toLowerCase()] || 0;
+                        score += energyScore * weights.energy;
+                        scoreDetails.push(`Energy: ${energyScore.toFixed(1)}`);
+                    }
+
+                    // Normalize score to 0-100
+                    const maxPossibleScore = (weights.price + weights.area + weights.distance + 
+                                             weights.basement + weights.plot + weights.bathrooms + 
+                                             weights.renovation + weights.energy) * 10;
+                    const normalizedScore = maxPossibleScore > 0 ? (score / maxPossibleScore) * 100 : 0;
+
+                    return {
+                        ...prop,
+                        score: normalizedScore,
+                        scoreDetails: scoreDetails.join(', ')
+                    };
+                });
+
+                // Sort by score
+                scoredProperties.sort((a, b) => b.score - a.score);
+
+                // Display top 20
+                const topProperties = scoredProperties.slice(0, 20);
+                
+                resultsContent.innerHTML = topProperties.map((prop, index) => {
+                    const scoreClass = prop.score >= 70 ? 'excellent' : prop.score >= 50 ? 'good' : '';
+                    const topPickClass = index < 3 ? 'top-pick' : '';
+                    const badge = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+                    
+                    return `
+                        <div class="scored-property ${topPickClass}" onclick="window.location.href='/?property=${prop.id}'">
+                            <div class="property-info">
+                                <h3>${badge} ${prop.address}</h3>
+                                <p>${prop.zip_code} ${prop.city} • ${prop.municipality}</p>
+                                <p style="margin-top: 5px;">
+                                    💰 ${(prop.price / 1000000).toFixed(1)}M DKK • 
+                                    📐 ${prop.living_area} m² • 
+                                    💵 ${prop.price_per_sqm ? prop.price_per_sqm.toLocaleString() + ' kr/m²' : 'N/A'}
+                                </p>
+                                <div class="score-breakdown">${prop.scoreDetails}</div>
+                            </div>
+                            <div class="score-badge ${scoreClass}">
+                                ${prop.score.toFixed(1)}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                resultsContent.innerHTML = `<p style="text-align: center; padding: 40px; color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

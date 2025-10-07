@@ -2,7 +2,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
-from .db_models import Base
+
+# Try relative import first, fallback to absolute
+try:
+    from .db_models_new import Base
+except ImportError:
+    from db_models_new import Base
 
 # Load environment variables
 load_dotenv()

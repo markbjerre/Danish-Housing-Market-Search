@@ -1,0 +1,21 @@
+# Requirements for Portable Version
+# Minimal dependencies for file-based webapp
+
+# Core web framework
+Flask==2.3.3
+
+# Data processing
+pandas==2.1.1
+numpy==1.24.3
+
+# Parquet file support
+pyarrow==13.0.0
+
+# Optional: For better performance
+fastparquet==0.8.3
+
+# Standard library dependencies (already included in Python)
+# - json
+# - pathlib
+# - os
+# - sys

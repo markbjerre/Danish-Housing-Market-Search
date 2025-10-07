@@ -1,0 +1,88 @@
+{
+  "export_date": "2025-10-07T23:27:26.242372",
+  "total_rows": 2599160,
+  "total_size_mb": 87.6,
+  "duration_seconds": 60.2,
+  "tables": [
+    {
+      "table": "properties_new",
+      "rows": 228594,
+      "file_size_mb": 44.45376014709473,
+      "file_path": "data\\backups\\full_export_20251007_232626\\properties_new.parquet"
+    },
+    {
+      "table": "municipalities",
+      "rows": 228594,
+      "file_size_mb": 2.664813995361328,
+      "file_path": "data\\backups\\full_export_20251007_232626\\municipalities.parquet"
+    },
+    {
+      "table": "provinces",
+      "rows": 228594,
+      "file_size_mb": 2.6425294876098633,
+      "file_path": "data\\backups\\full_export_20251007_232626\\provinces.parquet"
+    },
+    {
+      "table": "cities",
+      "rows": 228594,
+      "file_size_mb": 2.674130439758301,
+      "file_path": "data\\backups\\full_export_20251007_232626\\cities.parquet"
+    },
+    {
+      "table": "zip_codes",
+      "rows": 228594,
+      "file_size_mb": 2.695418357849121,
+      "file_path": "data\\backups\\full_export_20251007_232626\\zip_codes.parquet"
+    },
+    {
+      "table": "roads",
+      "rows": 228594,
+      "file_size_mb": 3.859560012817383,
+      "file_path": "data\\backups\\full_export_20251007_232626\\roads.parquet"
+    },
+    {
+      "table": "places",
+      "rows": 46101,
+      "file_size_mb": 1.590895652770996,
+      "file_path": "data\\backups\\full_export_20251007_232626\\places.parquet"
+    },
+    {
+      "table": "main_buildings",
+      "rows": 228177,
+      "file_size_mb": 4.294560432434082,
+      "file_path": "data\\backups\\full_export_20251007_232626\\main_buildings.parquet"
+    },
+    {
+      "table": "additional_buildings",
+      "rows": 297586,
+      "file_size_mb": 4.089532852172852,
+      "file_path": "data\\backups\\full_export_20251007_232626\\additional_buildings.parquet"
+    },
+    {
+      "table": "registrations",
+      "rows": 388113,
+      "file_size_mb": 10.452417373657227,
+      "file_path": "data\\backups\\full_export_20251007_232626\\registrations.parquet"
+    },
+    {
+      "table": "cases",
+      "rows": 3623,
+      "file_size_mb": 2.4896507263183594,
+      "file_path": "data\\backups\\full_export_20251007_232626\\cases.parquet"
+    },
+    {
+      "table": "case_images",
+      "rows": 35402,
+      "file_size_mb": 3.027078628540039,
+      "file_path": "data\\backups\\full_export_20251007_232626\\case_images.parquet"
+    },
+    {
+      "table": "days_on_market",
+      "rows": 228594,
+      "file_size_mb": 2.6325740814208984,
+      "file_path": "data\\backups\\full_export_20251007_232626\\days_on_market.parquet"
+    }
+  ],
+  "test_mode": false,
+  "limit_per_table": null
+}

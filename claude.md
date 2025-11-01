@@ -145,7 +145,8 @@ pip install -r requirements.txt
 
 # Start the web application
 python webapp/app.py
-# Open http://127.0.0.1:5000 in your browser
+# Local: http://127.0.0.1:5000
+# Production: https://ai-vaerksted.cloud/housing
 ```
 
 ### Portable System (No Database Required)
@@ -158,7 +159,8 @@ pip install -r requirements_portable.txt
 
 # Run the portable app
 python app_portable.py
-# Open http://127.0.0.1:5000 in your browser
+# Local: http://127.0.0.1:5000
+# Production: https://ai-vaerksted.cloud/housing
 ```
 
 ### Environment Variables (.env)
@@ -190,7 +192,10 @@ Daily Refresh         Weekly Refresh     ↓ Weekly Backup
     PostgreSQL ←————→ Flask Web App ←——┘
                    
          ↓
-    User Browser (http://127.0.0.1:5000)
+    User Browser
+    • Local Dev: http://127.0.0.1:5000
+    • Production: https://ai-vaerksted.cloud/housing
+```
 ```
 
 ### Database Schema (14 Tables)

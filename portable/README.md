@@ -25,7 +25,12 @@ python app_portable.py
 ```
 
 ### 3. Open in browser
+
+**Development (Local):**  
 Visit: http://127.0.0.1:5000
+
+**Production (Deployed):**  
+Visit: https://ai-vaerksted.cloud/housing
 
 ## 📦 For Work Laptop
 

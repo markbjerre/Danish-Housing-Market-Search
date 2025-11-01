@@ -207,19 +207,67 @@ def data_info():
     except Exception as e:
         return render_template('error.html', error=str(e))
 
+@app.route('/api/health')
+def health():
+    """
+    Health check endpoint for deployment monitoring.
+    Returns JSON status and data statistics.
+    """
+    try:
+        properties_table = file_db.get_table('properties_new')
+        cases_table = file_db.get_table('cases')
+        
+        return jsonify({
+            'status': 'ok',
+            'properties_count': len(properties_table) if properties_table is not None else 0,
+            'active_listings': len(cases_table) if cases_table is not None else 0,
+            'data_export': Path(file_db.export_dir).name if file_db.export_dir else 'Unknown',
+            'environment': os.getenv('FLASK_ENV', 'development'),
+            'timestamp': str(Path(file_db.export_dir).stat().st_mtime) if file_db.export_dir else None
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     safe_print("\n🚀 Starting Portable Danish Housing Search")
-    safe_print("=" * 50)
+    safe_print("=" * 60)
+    
+    # Determine environment
+    is_production = os.getenv('FLASK_ENV') == 'production'
+    env_name = 'PRODUCTION' if is_production else 'DEVELOPMENT'
+    safe_print(f"📊 Environment: {env_name}")
     safe_print(f"📊 Properties: {len(file_db.get_table('properties_new')):,}")
+    safe_print(f"🏘️  Active Listings: {len(file_db.get_table('cases')):,}")
     safe_print(f"🏘️  Municipalities: {len(file_db.get_municipalities())}")
     safe_print(f"📁 Data from: {file_db.export_dir}")
     safe_print(f"📅 Export date: {file_db.manifest['export_date']}")
-    safe_print("=" * 50)
-    safe_print("🌐 Starting server at: http://127.0.0.1:5000")
-    safe_print("📋 Routes available:")
-    safe_print("   /          - Home page")
-    safe_print("   /search    - Property search")
-    safe_print("   /data-info - Data statistics")
-    safe_print("=" * 50)
+    safe_print("=" * 60)
     
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    if is_production:
+        safe_print("🌐 Production Mode:")
+        safe_print("   • URL: https://ai-vaerksted.cloud/housing")
+        safe_print("   • API: https://ai-vaerksted.cloud/housing/api/health")
+        safe_print("   • Port: 8000 (internal, routed via Traefik)")
+    else:
+        safe_print("🌐 Development Mode:")
+        safe_print("   • Local: http://127.0.0.1:5000")
+    
+    safe_print("📋 Available Endpoints:")
+    safe_print("   /              - Home page")
+    safe_print("   /search        - Property search interface")
+    safe_print("   /data-info     - Data statistics")
+    safe_print("   /api/search    - Search API")
+    safe_print("   /api/property/<id> - Property details")
+    safe_print("   /api/health    - Health check")
+    safe_print("   /api/stats     - Statistics API")
+    safe_print("=" * 60)
+    
+    # Determine host and port
+    host = '0.0.0.0' if is_production else '127.0.0.1'
+    port = 8000 if is_production else 5000
+    debug = not is_production
+    
+    app.run(debug=debug, host=host, port=port)

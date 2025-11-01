@@ -18,10 +18,12 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+# Set template folder to webapp templates (parent directory)
+template_dir = os.path.join(os.path.dirname(__file__), '..', 'webapp', 'templates')
+app = Flask(__name__, template_folder=template_dir)
+
 # Import the file database module (now in same directory)
 from file_database import init_file_database, file_db
-
-app = Flask(__name__)
 
 # Initialize file-based database
 try:
@@ -91,7 +93,7 @@ def search():
         
         return jsonify({
             'success': True,
-            'properties': results['properties'],
+            'results': results['properties'],  # Changed from 'properties' to 'results' to match frontend
             'total': results['total'],
             'page': results['page'],
             'per_page': results['per_page'],
@@ -105,24 +107,78 @@ def search():
             'error': str(e)
         }), 500
 
+@app.route('/api/text-search')
+def text_search():
+    """Free-text search across address, city, municipality, and other fields"""
+    try:
+        query = request.args.get('q', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        if len(query) < 2:
+            return jsonify({
+                'success': False,
+                'error': 'Search query must be at least 2 characters',
+                'results': []
+            }), 400
+        
+        # Perform text search
+        search_results = file_db.text_search(query)
+        
+        # Sort by price descending
+        price_column = 'current_price_case' if 'current_price_case' in search_results.columns else 'latest_valuation'
+        search_results = search_results.sort_values(price_column, ascending=False, na_position='last')
+        
+        total = len(search_results)
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        page_results = search_results.iloc[start_idx:end_idx]
+        
+        # Format results
+        formatted_results = file_db._format_properties(page_results)
+        
+        return jsonify({
+            'success': True,
+            'results': formatted_results,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page,
+            'query': query
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/property/<property_id>')
 def get_property(property_id):
     """Get detailed property information"""
     try:
-        property_data = file_db.get_property_by_id(property_id)
+        print(f"🔍 Fetching property: {property_id}")
+        property_data = file_db.get_detailed_property_by_id(property_id)
         
         if property_data:
+            print(f"✅ Property found, keys: {list(property_data.keys())}")
             return jsonify({
                 'success': True,
                 'property': property_data
             })
         else:
+            print(f"❌ Property not found: {property_id}")
             return jsonify({
                 'success': False,
                 'error': 'Property not found'
             }), 404
             
     except Exception as e:
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)

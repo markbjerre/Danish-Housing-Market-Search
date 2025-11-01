@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Add src directory to path (go up one level from scripts/)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from db_models_new import Case, CaseImage
 

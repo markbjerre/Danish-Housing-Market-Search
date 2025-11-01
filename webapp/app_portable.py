@@ -19,6 +19,26 @@ from pathlib import Path
 sys.path.append('src')
 sys.path.append('../src')
 
+def safe_print(text: str):
+    """Print text safely, handling Unicode encoding issues on Windows"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Replace common emojis with ASCII alternatives for Windows console
+        text_safe = (text
+            .replace('📁', '[FOLDER]')
+            .replace('📊', '[CHART]')
+            .replace('📋', '[CLIPBOARD]')
+            .replace('📅', '[CALENDAR]')
+            .replace('🔄', '[REFRESH]')
+            .replace('✅', '[OK]')
+            .replace('❌', '[ERROR]')
+            .replace('⚠️', '[WARNING]')
+            .replace('🚀', '[ROCKET]')
+            .replace('🏘️', '[HOUSES]')
+            .replace('🌐', '[GLOBE]'))
+        print(text_safe)
+
 try:
     from src.file_database import init_file_database, file_db
 except ImportError:
@@ -29,10 +49,10 @@ app = Flask(__name__)
 # Initialize file-based database
 try:
     file_db = init_file_database()
-    print("✅ File-based database initialized successfully")
+    safe_print("✅ File-based database initialized successfully")
 except Exception as e:
-    print(f"❌ Failed to initialize file database: {e}")
-    print("📋 Make sure to run: python backup_database.py --export")
+    safe_print(f"❌ Failed to initialize file database: {e}")
+    safe_print("📋 Make sure to run: python backup_database.py --export")
     sys.exit(1)
 
 @app.route('/')
@@ -188,18 +208,18 @@ def data_info():
         return render_template('error.html', error=str(e))
 
 if __name__ == '__main__':
-    print("\n🚀 Starting Portable Danish Housing Search")
-    print("=" * 50)
-    print(f"📊 Properties: {len(file_db.get_table('properties_new')):,}")
-    print(f"🏘️  Municipalities: {len(file_db.get_municipalities())}")
-    print(f"📁 Data from: {file_db.export_dir}")
-    print(f"📅 Export date: {file_db.manifest['export_date']}")
-    print("=" * 50)
-    print("🌐 Starting server at: http://127.0.0.1:5000")
-    print("📋 Routes available:")
-    print("   /          - Home page")
-    print("   /search    - Property search")
-    print("   /data-info - Data statistics")
-    print("=" * 50)
+    safe_print("\n🚀 Starting Portable Danish Housing Search")
+    safe_print("=" * 50)
+    safe_print(f"📊 Properties: {len(file_db.get_table('properties_new')):,}")
+    safe_print(f"🏘️  Municipalities: {len(file_db.get_municipalities())}")
+    safe_print(f"📁 Data from: {file_db.export_dir}")
+    safe_print(f"📅 Export date: {file_db.manifest['export_date']}")
+    safe_print("=" * 50)
+    safe_print("🌐 Starting server at: http://127.0.0.1:5000")
+    safe_print("📋 Routes available:")
+    safe_print("   /          - Home page")
+    safe_print("   /search    - Property search")
+    safe_print("   /data-info - Data statistics")
+    safe_print("=" * 50)
     
     app.run(debug=True, host='127.0.0.1', port=5000)

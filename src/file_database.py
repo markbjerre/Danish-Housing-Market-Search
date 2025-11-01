@@ -9,6 +9,27 @@ from pathlib import Path
 import json
 from typing import Dict, List, Optional, Any
 import os
+import sys
+
+def safe_print(text: str):
+    """Print text safely, handling Unicode encoding issues on Windows"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Replace common emojis with ASCII alternatives for Windows console
+        text_safe = (text
+            .replace('📁', '[FOLDER]')
+            .replace('📊', '[CHART]')
+            .replace('📋', '[CLIPBOARD]')
+            .replace('📅', '[CALENDAR]')
+            .replace('🔄', '[REFRESH]')
+            .replace('✅', '[OK]')
+            .replace('❌', '[ERROR]')
+            .replace('⚠️', '[WARNING]')
+            .replace('🚀', '[ROCKET]')
+            .replace('🏘️', '[HOUSES]')
+            .replace('🌐', '[GLOBE]'))
+        print(text_safe)
 
 class FileBasedDatabase:
     """
@@ -36,13 +57,13 @@ class FileBasedDatabase:
         with open(latest_manifest) as f:
             self.manifest = json.load(f)
         
-        print(f"📁 Loading data from: {self.export_dir}")
-        print(f"📊 Export date: {self.manifest['export_date']}")
-        print(f"📋 Tables: {len(self.manifest['tables'])}")
+        safe_print(f"📁 Loading data from: {self.export_dir}")
+        safe_print(f"📊 Export date: {self.manifest['export_date']}")
+        safe_print(f"📋 Tables: {len(self.manifest['tables'])}")
     
     def _load_tables(self):
         """Load all Parquet files into memory as DataFrames"""
-        print("🔄 Loading tables into memory...")
+        safe_print("🔄 Loading tables into memory...")
         
         for table_info in self.manifest['tables']:
             table_name = table_info['table']
@@ -52,13 +73,13 @@ class FileBasedDatabase:
                 try:
                     df = pd.read_parquet(file_path)
                     self.tables[table_name] = df
-                    print(f"   ✅ {table_name}: {len(df):,} rows")
+                    safe_print(f"   ✅ {table_name}: {len(df):,} rows")
                 except Exception as e:
-                    print(f"   ❌ Error loading {table_name}: {e}")
+                    safe_print(f"   ❌ Error loading {table_name}: {e}")
             else:
-                print(f"   ⚠️  Missing: {file_path}")
+                safe_print(f"   ⚠️  Missing: {file_path}")
         
-        print(f"✅ Loaded {len(self.tables)} tables")
+        safe_print(f"✅ Loaded {len(self.tables)} tables")
     
     def get_table(self, table_name: str) -> pd.DataFrame:
         """Get a table as a pandas DataFrame"""

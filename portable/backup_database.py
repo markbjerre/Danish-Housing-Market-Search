@@ -143,7 +143,7 @@ def export_all_tables(output_dir, limit=None):
     
     # Create output directory
     output_dir = Path(output_dir)
-    output_dir.mkdir(exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     # Define all tables in logical order
     tables = [

@@ -262,6 +262,80 @@ def text_search():
             'error': f'Search error: {str(e)}'
         }), 500
 
+@app.route('/api/property/<property_id>')
+def api_property_detail(property_id):
+    """API endpoint for detailed property information"""
+    session = db.get_session()
+    try:
+        prop = session.query(Property).filter(Property.id == property_id).first()
+        
+        if not prop:
+            return jsonify({'error': 'Property not found'}), 404
+        
+        # Get all related data
+        building = prop.main_building
+        municipality = prop.municipality_info
+        registrations = prop.registrations or []
+        
+        # Format detailed response
+        result = {
+            # Basic info
+            'id': str(prop.id),
+            'address': f"{prop.road_name or ''} {prop.house_number or ''}".strip(),
+            'door': prop.door,
+            'floor': prop.floor,
+            'city': prop.city_name,
+            'zip_code': prop.zip_code,
+            'place_name': prop.place_name,
+            
+            # Property details
+            'living_area': float(prop.living_area) if prop.living_area else None,
+            'weighted_area': float(prop.weighted_area) if prop.weighted_area else None,
+            'latest_valuation': float(prop.latest_valuation) if prop.latest_valuation else None,
+            'property_number': prop.property_number,
+            'energy_label': prop.energy_label,
+            'on_market': prop.is_on_market,
+            
+            # Location
+            'latitude': float(prop.latitude) if prop.latitude else None,
+            'longitude': float(prop.longitude) if prop.longitude else None,
+            
+            # Municipality info
+            'municipality': {
+                'name': municipality.name if municipality else None,
+                'code': municipality.municipality_code if municipality else None,
+            } if municipality else None,
+            
+            # Main building
+            'main_building': {
+                'year_built': building.year_built if building else None,
+                'year_renovated': building.year_renovated if building else None,
+                'number_of_rooms': building.number_of_rooms if building else None,
+                'number_of_bathrooms': building.number_of_bathrooms if building else None,
+                'total_area': float(building.total_area) if building and building.total_area else None,
+            } if building else None,
+            
+            # Registration history (last 5 transactions)
+            'registrations': [
+                {
+                    'date': r.date.isoformat() if r.date else None,
+                    'amount': float(r.amount) if r.amount else None,
+                    'area': float(r.area) if r.area else None,
+                    'type': r.type,
+                } for r in sorted(registrations, key=lambda x: x.date or '', reverse=True)[:5]
+            ] if registrations else [],
+            
+            # Technical identifiers
+            'slug': prop.slug,
+        }
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': f'Error fetching property: {str(e)}'}), 500
+    finally:
+        session.close()
+
 @app.route('/property/<property_id>')
 def property_detail(property_id):
     """Get detailed information for a specific property"""

@@ -1,18 +1,21 @@
-streamlit==1.22.0
-pandas==2.0.1
-geopandas==0.13.0
-sqlalchemy==2.0.15
-psycopg2-binary==2.9.6
-python-dotenv==1.0.0
-folium==0.14.0
-scikit-learn==1.2.2
-numpy==1.24.3
-pytest==7.3.1
-alembic==1.11.1  # for database migrations
-flask==2.0.1
-flask-sqlalchemy==2.5.1
 
-# Floor plan scraping dependencies
-selenium==4.16.0
+Flask==2.3.3
+Werkzeug==2.3.7
+alembic==1.11.1  # for database migrations
+flask-sqlalchemy==3.0.5
+flask==2.3.3
+folium==0.14.0
+geopandas==0.13.0
+gunicorn==21.2.0
+numpy==1.24.3
+pandas==2.0.1
 pillow==10.1.0
-webdriver-manager==4.0.1  # Automatic chromedriver management
+psycopg2-binary==2.9.6
+pytest==7.3.1
+python-dotenv==1.0.0
+scikit-learn==1.2.2
+selenium==4.16.0
+sqlalchemy==2.0.15
+streamlit==1.22.0
+webdriver-manager==4.0.1
+werkzeug==2.3.7

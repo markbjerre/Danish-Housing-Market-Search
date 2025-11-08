@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from datetime import datetime
 import sys
 sys.path.append('..')
 from src.database import db
@@ -142,10 +143,17 @@ def search():
         municipality_obj = prop.municipality_info
         municipality_name = municipality_obj.name if municipality_obj else 'N/A'
         
+        # Get current listing price from most recent case
+        current_price = None
+        if prop.cases:
+            # Get the most recent case (assuming cases are ordered)
+            latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
+            current_price = latest_case.current_price
+        
         # Calculate price per m²
         price_per_sqm = None
-        if prop.latest_valuation and prop.living_area and prop.living_area > 0:
-            price_per_sqm = round(prop.latest_valuation / prop.living_area, 2)
+        if current_price and prop.living_area and prop.living_area > 0:
+            price_per_sqm = round(current_price / prop.living_area, 2)
         
         # Get days on market
         days_on_market_obj = prop.days_on_market_info
@@ -166,7 +174,7 @@ def search():
             'city': prop.city_name,
             'zip_code': prop.zip_code,
             'municipality': municipality_name,
-            'price': prop.latest_valuation,
+            'price': current_price,
             'living_area': prop.living_area,
             'price_per_sqm': price_per_sqm,
             'area_avg_price_per_sqm': area_avg_price_per_sqm.get(municipality_name),

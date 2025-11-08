@@ -1146,6 +1146,13 @@
 
         // Search properties
         async function searchProperties(page = 1) {
+            // Check if there's a text search query - if so, delegate to text search
+            const textSearchQuery = document.getElementById('text_search').value.trim();
+            if (textSearchQuery.length >= 2) {
+                performTextSearch(textSearchQuery, page);
+                return;
+            }
+
             currentPage = page;
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '<div class="loading">🔄 Searching properties...</div>';

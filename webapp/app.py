@@ -60,6 +60,15 @@ def search():
     # Build query
     query = session.query(Property).join(Property.municipality_info)
     
+    # By default, only show properties on market (active listings)
+    # User can override with on_market=false to see off-market properties
+    if on_market is None:
+        # Default: only show properties currently on market
+        query = query.filter(Property.is_on_market == True)
+    else:
+        # User explicitly set the filter
+        query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))
+    
     # Apply filters
     if municipality and municipality != 'all':
         query = query.filter(Municipality.name == municipality)
@@ -73,10 +82,6 @@ def search():
         query = query.filter(Property.living_area >= min_area)
     if max_area:
         query = query.filter(Property.living_area <= max_area)
-    
-    # On market filter
-    if on_market:
-        query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))
     
     # Join with MainBuilding for rooms and year filters
     if min_rooms or max_rooms or min_year or max_year:

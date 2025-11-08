@@ -82,7 +82,7 @@
 
         .filters {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
             align-items: start;
@@ -570,6 +570,61 @@
 
         .gallery-image:hover {
             transform: scale(1.05);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-large {
+            padding: 14px 28px;
+            font-size: 1.05em;
         }
 
         .map-container {
@@ -1496,6 +1551,18 @@
                                     `).join('')}
                                 </div>
                             </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="action-buttons">
+                                <a href="${data.slug ? `https://www.boligsiden.dk/adresse/${data.slug}` : '#'}" 
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="btn btn-primary btn-large">
+                                   🔗 View on Boligsiden
+                                </a>
+                                <button class="btn btn-secondary btn-large btn-disabled" disabled title="Floor plan not available">
+                                   📐 See Floor Plan
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1824,6 +1891,19 @@
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c;
         }
+
+        // Initialize page with any query parameters
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchQuery = urlParams.get('q');
+            
+            if (searchQuery && searchQuery.trim().length > 0) {
+                // Fill in the search box
+                document.getElementById('text_search').value = searchQuery;
+                // Perform the search
+                setTimeout(() => performTextSearch(searchQuery, 1), 500);
+            }
+        });
     </script>
 </body>
 </html>

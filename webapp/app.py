@@ -3,7 +3,7 @@ import sys
 sys.path.append('..')
 from src.database import db
 from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, String
 
 app = Flask(__name__)
 
@@ -185,6 +185,82 @@ def search():
         'per_page': per_page,
         'total_pages': (total + per_page - 1) // per_page
     })
+
+@app.route('/api/text-search')
+def text_search():
+    """Search properties by text (address, city, municipality)"""
+    try:
+        session = db.get_session()
+        
+        # Get search query
+        query_text = request.args.get('q', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        if not query_text or len(query_text) < 2:
+            session.close()
+            return jsonify({
+                'success': False,
+                'error': 'Search query must be at least 2 characters',
+                'results': [],
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': 0
+            }), 400
+        
+        # Build search query - search across multiple fields
+        # Cast zip_code to string for text comparison
+        search_filter = or_(
+            Property.road_name.ilike(f'%{query_text}%'),
+            Property.city_name.ilike(f'%{query_text}%'),
+            Property.place_name.ilike(f'%{query_text}%'),
+            Municipality.name.ilike(f'%{query_text}%'),
+            func.cast(Property.zip_code, String).ilike(f'%{query_text}%'),
+        )
+        
+        query = session.query(Property).join(Property.municipality_info).filter(search_filter)
+        
+        # Get total count
+        total = query.count()
+        
+        # Default sort by price descending
+        query = query.order_by(Property.latest_valuation.desc())
+        
+        # Paginate
+        properties = query.offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Format results
+        results = []
+        for prop in properties:
+            results.append({
+                'id': prop.id,
+                'address': f"{prop.road_name} {prop.house_number}",
+                'city': prop.city_name,
+                'zip_code': prop.zip_code,
+                'municipality': prop.municipality_info.name if prop.municipality_info else None,
+                'price': prop.latest_valuation,
+                'area': prop.living_area,
+                'slug': prop.slug,
+                'is_on_market': prop.is_on_market,
+            })
+        
+        session.close()
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Search error: {str(e)}'
+        }), 500
 
 @app.route('/property/<property_id>')
 def property_detail(property_id):

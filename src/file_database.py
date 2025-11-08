@@ -287,6 +287,30 @@ class FileBasedDatabase:
         
         return results
     
+    def text_search(self, query: str) -> pd.DataFrame:
+        """Search properties by text across address, city, municipality, and place name"""
+        properties = self.get_table('properties_new')
+        
+        # Convert query to lowercase for case-insensitive search
+        query_lower = query.lower()
+        
+        # Create boolean mask for each searchable field
+        mask = (
+            properties['address'].astype(str).str.lower().str.contains(query_lower, na=False) |
+            properties['city_name'].astype(str).str.lower().str.contains(query_lower, na=False) |
+            properties['place_name'].astype(str).str.lower().str.contains(query_lower, na=False) |
+            properties['zip_code'].astype(str).str.lower().str.contains(query_lower, na=False)
+        )
+        
+        # Also search in municipalities
+        if 'municipalities' in self.tables:
+            municipalities = self.get_table('municipalities')
+            muni_mask = municipalities['name'].astype(str).str.lower().str.contains(query_lower, na=False)
+            muni_ids = municipalities[muni_mask]['id'].values
+            mask = mask | properties['municipality_id'].isin(muni_ids)
+        
+        return properties[mask]
+    
     def get_municipalities(self) -> List[str]:
         """Get list of all municipalities for dropdown"""
         if 'municipalities' in self.tables:
@@ -311,6 +335,99 @@ class FileBasedDatabase:
         # Format single property
         formatted = self._format_properties(prop_with_data)
         return formatted[0] if formatted else None
+    
+    def get_detailed_property_by_id(self, property_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed property information by ID (alias for compatibility)"""
+        try:
+            # Convert property_id to string to ensure compatibility
+            property_id = str(property_id).strip()
+            
+            property_data = self.get_property_by_id(property_id)
+            
+            if not property_data:
+                return None
+            
+            # Get the raw property row for additional details
+            properties = self.get_table('properties_new')
+            prop_row = properties[properties['id'] == property_id]
+            
+            if not prop_row.empty:
+                prop_row = prop_row.iloc[0]
+                # Add slug if available
+                if pd.notna(prop_row.get('slug')):
+                    property_data['slug'] = prop_row['slug']
+                # Add case_id for image lookup
+                if pd.notna(prop_row.get('case_id')):
+                    property_data['case_id'] = prop_row['case_id']
+            
+            # Add images if available
+            if 'case_images' in self.tables:
+                case_id = property_data.get('case_id')
+                if case_id:
+                    images = self.tables['case_images']
+                    case_images = images[images['case_id'] == case_id]
+                    
+                    if not case_images.empty:
+                        # Sort by width descending to get best quality first
+                        case_images = case_images.sort_values('width', ascending=False)
+                        property_data['images'] = [
+                            {
+                                'url': row['image_url'],
+                                'width': row.get('width'),
+                                'height': row.get('height')
+                            }
+                            for _, row in case_images.iterrows()
+                            if pd.notna(row['image_url'])
+                        ]
+            
+            # Add main_building details if available
+            if 'main_buildings' in self.tables:
+                buildings = self.tables['main_buildings']
+                building = buildings[buildings['property_id'] == property_id]
+                
+                if not building.empty:
+                    building_row = building.iloc[0]
+                    property_data['main_building'] = {
+                        'building_name': building_row.get('building_name'),
+                        'year_built': int(building_row.get('year_built')) if pd.notna(building_row.get('year_built')) else None,
+                        'year_renovated': int(building_row.get('year_renovated')) if pd.notna(building_row.get('year_renovated')) else None,
+                        'number_of_floors': int(building_row.get('number_of_floors')) if pd.notna(building_row.get('number_of_floors')) else None,
+                        'number_of_rooms': int(building_row.get('number_of_rooms')) if pd.notna(building_row.get('number_of_rooms')) else None,
+                        'number_of_bathrooms': int(building_row.get('number_of_bathrooms')) if pd.notna(building_row.get('number_of_bathrooms')) else None,
+                        'number_of_toilets': int(building_row.get('number_of_toilets')) if pd.notna(building_row.get('number_of_toilets')) else None,
+                        'housing_area': float(building_row.get('housing_area')) if pd.notna(building_row.get('housing_area')) else None,
+                        'basement_area': float(building_row.get('basement_area')) if pd.notna(building_row.get('basement_area')) else None,
+                        'total_area': float(building_row.get('total_area')) if pd.notna(building_row.get('total_area')) else None,
+                        'external_wall_material': building_row.get('external_wall_material'),
+                        'roofing_material': building_row.get('roofing_material'),
+                        'heating_installation': building_row.get('heating_installation'),
+                        'kitchen_condition': building_row.get('kitchen_condition'),
+                        'bathroom_condition': building_row.get('bathroom_condition'),
+                    }
+            
+            # Add registrations if available
+            if 'registrations' in self.tables:
+                regs = self.tables['registrations']
+                property_regs = regs[regs['property_id'] == property_id]
+                
+                if not property_regs.empty:
+                    property_data['registrations'] = [
+                        {
+                            'date': str(row.get('date')) if pd.notna(row.get('date')) else None,
+                            'amount': int(row.get('amount')) if pd.notna(row.get('amount')) else None,
+                            'area': float(row.get('area')) if pd.notna(row.get('area')) else None,
+                            'type': row.get('type'),
+                        }
+                        for _, row in property_regs.iterrows()
+                    ]
+            
+            return property_data
+        
+        except Exception as e:
+            print(f"❌ Error in get_detailed_property_by_id: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 # Global instance for the webapp
 file_db = None

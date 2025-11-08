@@ -1198,7 +1198,7 @@
                     page: page
                 });
 
-                const response = await fetch(`/housing/api/text-search?${params}`);
+                const response = await fetch(`./api/text-search?${params}`);
                 const data = await response.json();
 
                 if (!data.success) {
@@ -1347,7 +1347,7 @@
             console.log('🔍 Search params:', params.toString());
             
             try {
-                const response = await fetch(`/housing/api/search?${params}`);
+                const response = await fetch(`./api/search?${params}`);
                 const data = await response.json();
 
                 console.log('✅ Search response:', data);
@@ -1526,16 +1526,18 @@
             
             try {
                 console.log('📡 Fetching property details for ID:', propertyId);
-                const response = await fetch(`/housing/api/property/${propertyId}`);
+                const response = await fetch(`./api/property/${propertyId}`);
                 const data = await response.json();
                 
                 console.log('✅ Response received:', data);
                 
-                if (!data.success) {
+                // Handle both wrapper format and direct object format
+                const property = data.property || (data.error ? null : data);
+                
+                if (data.error || !property) {
                     throw new Error(data.error || 'Failed to load property');
                 }
                 
-                const property = data.property;
                 console.log('🏠 Property data:', property);
                 
                 // Set header

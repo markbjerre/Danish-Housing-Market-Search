@@ -414,9 +414,9 @@
     <nav>
         <div class="logo">🏠 Copenhagen Homes</div>
         <ul class="nav-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/search">Search</a></li>
-            <li><a href="/score-calculator">Score Calculator</a></li>
+            <li><a href="./">Home</a></li>
+            <li><a href="./search">Search</a></li>
+            <li><a href="./score-calculator">Score Calculator</a></li>
         </ul>
     </nav>
 
@@ -504,9 +504,9 @@
         function goToSearch() {
             const searchTerm = document.getElementById('quickSearch').value;
             if (searchTerm) {
-                window.location.href = `/search?q=${encodeURIComponent(searchTerm)}`;
+                window.location.href = `./search?q=${encodeURIComponent(searchTerm)}`;
             } else {
-                window.location.href = '/search';
+                window.location.href = './search';
             }
         }
 

@@ -82,6 +82,8 @@ def search():
     page = request.args.get('page', 1, type=int)
     per_page = 50
     
+    print(f"🔍 Search called with filters: {filters}, sort_by: {sort_by}, page: {page}")
+    
     try:
         # Search using file database
         results = file_db.search_properties(
@@ -90,6 +92,8 @@ def search():
             page=page,
             per_page=per_page
         )
+        
+        print(f"✅ Search returned {len(results['properties'])} results out of {results['total']} total")
         
         return jsonify({
             'success': True,
@@ -102,6 +106,9 @@ def search():
         })
         
     except Exception as e:
+        print(f"❌ Error in search: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)

@@ -935,8 +935,8 @@
         </div>
 
         <div style="text-align: center; margin-bottom: 20px;">
-            <a href="/" style="color: white; text-decoration: none; margin: 0 15px; font-size: 1.1em; font-weight: 600; padding: 8px 20px; border-radius: 25px; background: rgba(255,255,255,0.3);">🏠 Property Search</a>
-            <a href="/score-calculator" style="color: white; text-decoration: none; margin: 0 15px; font-size: 1.1em; font-weight: 600; padding: 8px 20px; border-radius: 25px; background: rgba(255,255,255,0.2); transition: background 0.3s;">🎯 Score Calculator</a>
+            <a href="./" style="color: white; text-decoration: none; margin: 0 15px; font-size: 1.1em; font-weight: 600; padding: 8px 20px; border-radius: 25px; background: rgba(255,255,255,0.3);">🏠 Property Search</a>
+            <a href="./score-calculator" style="color: white; text-decoration: none; margin: 0 15px; font-size: 1.1em; font-weight: 600; padding: 8px 20px; border-radius: 25px; background: rgba(255,255,255,0.2); transition: background 0.3s;">🎯 Score Calculator</a>
         </div>
 
         <div class="search-panel">
@@ -1271,32 +1271,87 @@
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '<div class="loading">🔄 Searching properties...</div>';
 
-            // Build query parameters
+            // Build query parameters - only add non-empty values
             const minPrice = parseInt(minPriceSlider.value);
             const maxPrice = parseInt(maxPriceSlider.value);
             
-            const params = new URLSearchParams({
-                page: page,
-                municipality: document.getElementById('municipality').value,
-                min_price: minPrice > 0 ? minPrice : '',
-                max_price: maxPrice < 20000000 ? maxPrice : '',
-                min_area: document.getElementById('min_area').value || '',
-                max_area: document.getElementById('max_area').value || '',
-                min_rooms: document.getElementById('min_rooms').value || '',
-                max_rooms: document.getElementById('max_rooms').value || '',
-                min_year: document.getElementById('min_year').value || '',
-                max_year: document.getElementById('max_year').value || '',
-                on_market: document.getElementById('on_market').value || '',
-                realtor: document.getElementById('realtor').value || '',
-                min_days_on_market: document.getElementById('min_days').value || '',
-                max_days_on_market: document.getElementById('max_days').value || '',
-                sort_by: document.getElementById('sort_by')?.value || 'price_desc',
-            });
+            const params = new URLSearchParams();
+            params.append('page', page);
+            
+            // Add only if not default/empty
+            const municipality = document.getElementById('municipality').value;
+            if (municipality && municipality !== 'all') {
+                params.append('municipality', municipality);
+            }
+            
+            if (minPrice > 0) {
+                params.append('min_price', minPrice);
+            }
+            if (maxPrice < 20000000) {
+                params.append('max_price', maxPrice);
+            }
+            
+            const minArea = document.getElementById('min_area').value;
+            if (minArea) {
+                params.append('min_area', minArea);
+            }
+            
+            const maxArea = document.getElementById('max_area').value;
+            if (maxArea) {
+                params.append('max_area', maxArea);
+            }
+            
+            const minRooms = document.getElementById('min_rooms').value;
+            if (minRooms) {
+                params.append('min_rooms', minRooms);
+            }
+            
+            const maxRooms = document.getElementById('max_rooms').value;
+            if (maxRooms) {
+                params.append('max_rooms', maxRooms);
+            }
+            
+            const minYear = document.getElementById('min_year').value;
+            if (minYear) {
+                params.append('min_year', minYear);
+            }
+            
+            const maxYear = document.getElementById('max_year').value;
+            if (maxYear) {
+                params.append('max_year', maxYear);
+            }
+            
+            const onMarket = document.getElementById('on_market').value;
+            if (onMarket) {
+                params.append('on_market', onMarket);
+            }
+            
+            const realtor = document.getElementById('realtor').value;
+            if (realtor) {
+                params.append('realtor', realtor);
+            }
+            
+            const minDays = document.getElementById('min_days').value;
+            if (minDays) {
+                params.append('min_days_on_market', minDays);
+            }
+            
+            const maxDays = document.getElementById('max_days').value;
+            if (maxDays) {
+                params.append('max_days_on_market', maxDays);
+            }
+            
+            const sortBy = document.getElementById('sort_by')?.value || 'price_desc';
+            params.append('sort_by', sortBy);
 
+            console.log('🔍 Search params:', params.toString());
+            
             try {
                 const response = await fetch(`/api/search?${params}`);
                 const data = await response.json();
 
+                console.log('✅ Search response:', data);
+                
                 // Apply distance filter on client side
                 const maxDistance = document.getElementById('max_distance').value;
                 if (maxDistance) {
@@ -1314,6 +1369,7 @@
 
                 displayResults(data);
             } catch (error) {
+                console.error('❌ Search error:', error);
                 resultsDiv.innerHTML = `<div class="no-results"><h2>Error loading properties</h2><p>${error.message}</p></div>`;
             }
         }
@@ -1902,6 +1958,36 @@
                 document.getElementById('text_search').value = searchQuery;
                 // Perform the search
                 setTimeout(() => performTextSearch(searchQuery, 1), 500);
+            }
+            
+            // Add event listeners to all filter inputs to trigger search on change
+            const filterInputIds = [
+                'municipality', 'min_area', 'max_area', 'min_rooms', 'max_rooms',
+                'min_year', 'max_year', 'on_market', 'realtor', 'min_days', 'max_days', 'sort_by'
+            ];
+            
+            filterInputIds.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.addEventListener('change', () => {
+                        console.log(`Filter changed: ${id}`);
+                        searchProperties(1);
+                    });
+                }
+            });
+            
+            // Also add listeners for price sliders
+            if (minPriceSlider) {
+                minPriceSlider.addEventListener('change', () => {
+                    console.log('Min price changed');
+                    searchProperties(1);
+                });
+            }
+            if (maxPriceSlider) {
+                maxPriceSlider.addEventListener('change', () => {
+                    console.log('Max price changed');
+                    searchProperties(1);
+                });
             }
         });
     </script>

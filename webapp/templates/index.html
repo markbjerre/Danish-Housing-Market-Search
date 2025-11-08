@@ -287,11 +287,34 @@
             cursor: pointer;
             width: 100%;
             max-width: 380px;
+            display: flex;
+            flex-direction: column;
         }
 
         .property-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .property-image-container {
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .property-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .property-card:hover .property-image {
+            transform: scale(1.05);
         }
 
         .property-header {
@@ -511,6 +534,42 @@
             font-size: 0.85em;
             color: #666;
             margin-bottom: 3px;
+        }
+
+        .image-gallery-container {
+            width: 100%;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .image-gallery {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            width: max-content;
+        }
+
+        .gallery-image-wrapper {
+            flex-shrink: 0;
+            width: 280px;
+            height: 180px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f0f0f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .gallery-image:hover {
+            transform: scale(1.05);
         }
 
         .map-container {
@@ -1279,6 +1338,14 @@
                      data-lat="${prop.latitude || 0}" 
                      data-lon="${prop.longitude || 0}" 
                      data-energy="${prop.energy_label || 'N/A'}">
+                    
+                    <!-- Property Image -->
+                    ${prop.image_url ? `
+                    <div class="property-image-container">
+                        <img src="${prop.image_url}" alt="${prop.address}" class="property-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23e0e0e0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2220%22 fill=%22%23999%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo image available%3C/text%3E%3C/svg%3E'" />
+                    </div>
+                    ` : ''}
+                    
                     <div class="property-header">
                         <div class="property-address">${prop.address}</div>
                         <div class="property-location">${prop.zip_code} ${prop.city} • ${prop.municipality}</div>
@@ -1411,6 +1478,28 @@
         // Create detailed view HTML
         function createDetailedView(data) {
             let html = '';
+            
+            // Images section at top
+            if (data.images && data.images.length > 0) {
+                html += `
+                    <div class="detail-section">
+                        <h3 onclick="toggleSection(this)">📸 Property Images (${data.images.length})</h3>
+                        <div class="detail-content">
+                            <div class="image-gallery-container">
+                                <div class="image-gallery">
+                                    ${data.images.map((img, idx) => `
+                                        <div class="gallery-image-wrapper">
+                                            <img src="${img.url}" alt="Property image ${idx + 1}" 
+                                                 class="gallery-image"
+                                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22200%22%3E%3Crect fill=%22%23e0e0e0%22 width=%22300%22 height=%22200%22/%3E%3C/svg%3E'" />
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
             
             // Price section at top
             html += `

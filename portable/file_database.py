@@ -258,8 +258,9 @@ class FileBasedDatabase:
                 return val
             
             # Format property data
+            prop_id = safe_value(row.get('id'))
             prop_data = {
-                'id': safe_value(row.get('id')),
+                'id': prop_id,
                 'address': f"{safe_value(row.get('road_name', '')) or ''} {safe_value(row.get('house_number', '')) or ''}".strip(),
                 'city': safe_value(row.get('city_name')) or 'N/A',
                 'zip_code': safe_value(row.get('zip_code')) or 'N/A',
@@ -274,8 +275,18 @@ class FileBasedDatabase:
                 'latitude': safe_value(row.get('latitude')),
                 'longitude': safe_value(row.get('longitude')),
                 'days_on_market': safe_value(row.get('days_on_market_current_case')),
-                'realtor_names': []  # Simplified for now
+                'realtor_names': [],  # Simplified for now
+                'image_url': None  # Will be populated with first image if available
             }
+            
+            # Get first image for this property
+            if prop_id:
+                images = self.get_property_images(prop_id)
+                if images:
+                    # Get the image with the best resolution (largest)
+                    best_image = max(images, key=lambda x: x['width'] * x['height']) if images else None
+                    if best_image:
+                        prop_data['image_url'] = best_image['url']
             
             results.append(prop_data)
         
@@ -451,12 +462,56 @@ class FileBasedDatabase:
             except Exception as e:
                 print(f"Error getting case info: {e}")
             
+            # Images for the property
+            try:
+                images = self.get_property_images(safe_value(row.get('id')))
+                if images:
+                    detailed_data['images'] = images
+            except Exception as e:
+                print(f"Error getting images: {e}")
+            
             return detailed_data
         except Exception as e:
             print(f"Error in get_detailed_property_by_id: {e}")
             import traceback
             traceback.print_exc()
             return None
+    
+    def get_property_images(self, property_id: str) -> List[Dict[str, Any]]:
+        """Get all images for a property from the case_images table"""
+        try:
+            if 'case_images' not in self.tables or 'cases' not in self.tables:
+                return []
+            
+            # First, find the case_id for this property
+            cases = self.get_table('cases')
+            case = cases[cases['property_id'] == property_id]
+            
+            if case.empty:
+                return []
+            
+            case_id = case.iloc[0].get('id')
+            
+            # Get all images for this case
+            images = self.get_table('case_images')
+            property_images = images[images['case_id'] == case_id]
+            
+            if property_images.empty:
+                return []
+            
+            # Format images
+            result = []
+            for _, img_row in property_images.iterrows():
+                result.append({
+                    'url': img_row.get('image_url'),
+                    'width': int(img_row.get('width', 0)) if pd.notna(img_row.get('width')) else 0,
+                    'height': int(img_row.get('height', 0)) if pd.notna(img_row.get('height')) else 0,
+                })
+            
+            return sorted(result, key=lambda x: (x['width'], x['height']))
+        except Exception as e:
+            print(f"Error getting property images: {e}")
+            return []
     
     def text_search(self, query: str) -> pd.DataFrame:
         """

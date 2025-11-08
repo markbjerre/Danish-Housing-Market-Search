@@ -67,7 +67,10 @@ def get_headers():
 # Load municipalities within 60km
 def load_municipalities_within_60km():
     """Load list of municipalities within 60km of Copenhagen"""
-    with open('municipalities_within_60km.json', 'r', encoding='utf-8') as f:
+    # Use absolute path relative to this script's location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(script_dir, 'municipalities_within_60km.json')
+    with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     # Check which key structure is present

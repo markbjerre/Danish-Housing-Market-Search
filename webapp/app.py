@@ -3,7 +3,7 @@ from datetime import datetime
 import sys
 sys.path.append('..')
 from src.database import db
-from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province
+from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province, Case
 from sqlalchemy import func, or_, and_, String
 
 app = Flask(__name__)
@@ -66,9 +66,14 @@ def search():
     if on_market is None:
         # Default: only show properties currently on market
         query = query.filter(Property.is_on_market == True)
+        # Also filter to only properties that have cases with prices
+        query = query.join(Property.cases).filter(Case.current_price != None)
     else:
         # User explicitly set the filter
         query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))
+        # Still filter for properties with price data when available
+        if on_market.lower() == 'true':
+            query = query.join(Property.cases).filter(Case.current_price != None)
     
     # Apply filters
     if municipality and municipality != 'all':
@@ -99,7 +104,7 @@ def search():
             query = query.filter(MainBuilding.year_built <= max_year)
     
     # Get total count
-    total = query.count()
+    total = query.distinct().count()
     
     # Apply sorting
     if sort_by == 'price_asc':
@@ -118,7 +123,7 @@ def search():
         query = query.order_by(Property.latest_valuation.desc())
     
     # Paginate
-    properties = query.offset((page - 1) * per_page).limit(per_page).all()
+    properties = query.distinct().offset((page - 1) * per_page).limit(per_page).all()
     
     # Calculate area average price per m² (only for on-market properties)
     area_avg_price_per_sqm = {}

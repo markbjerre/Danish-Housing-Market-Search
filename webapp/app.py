@@ -105,8 +105,12 @@ def search():
     
     # Apply sorting
     if sort_by == 'price_asc':
+        # Sort by latest_valuation as a proxy for listing price
+        # (current_price is calculated post-query from most recent case)
         query = query.order_by(Property.latest_valuation.asc())
     elif sort_by == 'price_desc':
+        # Sort by latest_valuation as a proxy for listing price
+        # (current_price is calculated post-query from most recent case)
         query = query.order_by(Property.latest_valuation.desc())
     elif sort_by == 'size_desc':
         query = query.order_by(Property.living_area.desc())
@@ -117,6 +121,8 @@ def search():
     elif sort_by == 'price_per_sqm_asc':
         query = query.order_by((Property.latest_valuation / Property.living_area).asc())
     else:  # default to price_desc
+        # Sort by latest_valuation as a proxy for listing price
+        # (current_price is calculated post-query from most recent case)
         query = query.order_by(Property.latest_valuation.desc())
 
     # Paginate
@@ -144,19 +150,19 @@ def search():
         building = prop.main_building
         municipality_obj = prop.municipality_info
         municipality_name = municipality_obj.name if municipality_obj else 'N/A'
-        
+
         # Get current listing price from most recent case
         current_price = None
         if prop.cases:
             # Get the most recent case (assuming cases are ordered)
             latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
             current_price = latest_case.current_price
-        
+
         # Calculate price per m²
         price_per_sqm = None
         if current_price and prop.living_area and prop.living_area > 0:
             price_per_sqm = round(current_price / prop.living_area, 2)
-        
+
         # Get days on market
         days_on_market_obj = prop.days_on_market_info
         days_on_market = None
@@ -169,7 +175,7 @@ def search():
                     realtor_names = [r.get('name', '') for r in realtor_list if isinstance(r, dict)]
                 except:
                     realtor_names = []
-        
+
         results.append({
             'id': prop.id,
             'address': f"{prop.road_name} {prop.house_number}",
@@ -190,6 +196,10 @@ def search():
             'realtors': realtor_names,
             'days_on_market': days_on_market
         })
+
+    # Re-sort results by price if price sorting was requested (since current_price is calculated post-query)
+    if sort_by in ['price_asc', 'price_desc']:
+        results.sort(key=lambda r: r['price'] if r['price'] is not None else -1, reverse=(sort_by == 'price_desc'))
     
     session.close()
     
@@ -370,6 +380,10 @@ def text_search():
                 'days_on_market': None,
                 'image_url': None
             })
+
+        # Re-sort results by price if price sorting was requested
+        if sort_by in ['price_asc', 'price_desc']:
+            results.sort(key=lambda r: r['price'] if r['price'] is not None else -1, reverse=(sort_by == 'price_desc'))
 
         session.close()
 

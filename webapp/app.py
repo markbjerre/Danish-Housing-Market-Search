@@ -4,7 +4,7 @@ import sys
 sys.path.append('..')
 from src.database import db
 from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province, Case
-from sqlalchemy import func, or_, and_, String
+from sqlalchemy import func, or_, and_, String, distinct
 
 app = Flask(__name__)
 
@@ -118,7 +118,7 @@ def search():
         query = query.order_by((Property.latest_valuation / Property.living_area).asc())
     else:  # default to price_desc
         query = query.order_by(Property.latest_valuation.desc())
-    
+
     # Paginate
     properties = query.offset((page - 1) * per_page).limit(per_page).all()
 

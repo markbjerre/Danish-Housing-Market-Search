@@ -75,11 +75,20 @@ def search():
     # Apply filters
     if municipality and municipality != 'all':
         query = query.filter(Municipality.name == municipality)
-    
-    if min_price:
-        query = query.filter(Property.latest_valuation >= min_price)
-    if max_price:
-        query = query.filter(Property.latest_valuation <= max_price)
+
+    # Apply price filters to current_price from cases (not latest_valuation)
+    # This ensures returned prices match the filter criteria
+    if min_price or max_price:
+        # Use subquery to avoid duplicate rows from case join
+        case_subquery = session.query(Case.property_id).filter(
+            Case.property_id == Property.id
+        )
+        if min_price:
+            case_subquery = case_subquery.filter(Case.current_price >= min_price)
+        if max_price:
+            case_subquery = case_subquery.filter(Case.current_price <= max_price)
+
+        query = query.filter(case_subquery.exists())
     
     if min_area:
         query = query.filter(Property.living_area >= min_area)
@@ -277,11 +286,19 @@ def text_search():
         if municipality and municipality != 'all':
             query = query.filter(Municipality.name == municipality)
 
-        # Apply price filters
-        if min_price:
-            query = query.filter(Property.latest_valuation >= min_price)
-        if max_price:
-            query = query.filter(Property.latest_valuation <= max_price)
+        # Apply price filters to current_price from cases (not latest_valuation)
+        # This ensures returned prices match the filter criteria
+        if min_price or max_price:
+            # Use subquery to avoid duplicate rows from case join
+            case_subquery = session.query(Case.property_id).filter(
+                Case.property_id == Property.id
+            )
+            if min_price:
+                case_subquery = case_subquery.filter(Case.current_price >= min_price)
+            if max_price:
+                case_subquery = case_subquery.filter(Case.current_price <= max_price)
+
+            query = query.filter(case_subquery.exists())
 
         # Apply area filters
         if min_area:

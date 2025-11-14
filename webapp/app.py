@@ -3,7 +3,7 @@ from datetime import datetime
 import sys
 sys.path.append('..')
 from src.database import db
-from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province
+from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province, Case
 from sqlalchemy import func, or_, and_, String
 
 app = Flask(__name__)
@@ -67,7 +67,7 @@ def search():
         # Default: only show properties currently on market with valid prices
         query = query.filter(Property.is_on_market == True)
         # Join with cases to filter for properties with current prices
-        query = query.join(Property.cases).filter(models.Case.current_price.isnot(None)).distinct()
+        query = query.join(Property.cases).filter(Case.current_price.isnot(None)).distinct()
     else:
         # User explicitly set the filter
         query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))

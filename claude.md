@@ -97,9 +97,9 @@ Danish-Housing-Market-Search/
 When working on this project, please:
 
 ### Testing & Commits
-- **Test locally first**: Thoroughly test all changes locally before committing to git. This saves significant time and prevents deployment issues.
-- **Commit frequently**: Aim to submit commits to git approximately every 45 minutes. This keeps progress visible and enables rollback if needed.
-- **Traefik compatibility**: Always test navigation and URLs work on both localhost (`http://localhost:5000/housing`) and production (`https://ai-vaerksted.cloud/housing`) before committing.
+- **Test locally first**: Test changes locally using start_local_dev.sh/bat before pushing to VPS. This saves time and prevents wasting effort on deployment issues.
+- **Build, then commit**: Focus on building complete features/fixes locally first, then commit to git when feature is ready. No need for frequent micro-commits.
+- **Pragmatic testing**: Test locally to catch obvious issues and ensure core functionality works. Don't need to be extremely strict - just avoid pushing broken code to production.
 
 ### Code Quality
 - **Challenge assumptions**: Question if the user's approach might have issues or if there's better logic available

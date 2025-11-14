@@ -112,35 +112,64 @@ def search():
     # Apply distinct to avoid duplicate properties from filter subqueries
     query = query.distinct(Property.id)
 
-    # Apply sorting BEFORE counting and pagination
-    # If sorting by price, join with Case first to get current_price
+    # For price sorting, we need to join with the most recent Case for each property
+    # Use a subquery to get only the most recent case per property (by created_date)
     if sort_by in ['price_asc', 'price_desc'] or sort_by is None or sort_by == '':
         sort_by_price = True
-        query = query.outerjoin(Case, Property.id == Case.property_id)
+        from sqlalchemy import func as sql_func
+
+        # Subquery to find the most recent case per property
+        # Using GROUP BY with MAX to get only one case per property
+        recent_case_subquery = session.query(
+            Case.property_id,
+            Case.current_price,
+            sql_func.max(Case.created_date).over(partition_by=Case.property_id).label('max_date'),
+            sql_func.row_number().over(
+                partition_by=Case.property_id,
+                order_by=Case.created_date.desc()
+            ).label('rn')
+        ).subquery()
+
+        # Filter to only the most recent case (row_number = 1)
+        recent_cases = session.query(recent_case_subquery).filter(
+            recent_case_subquery.c.rn == 1
+        ).subquery()
+
+        # LEFT JOIN with the recent cases to preserve properties without cases
+        query = query.outerjoin(recent_cases, Property.id == recent_cases.c.property_id)
+
+        # Apply distinct again AFTER the join to eliminate duplicate rows from the join
+        query = query.distinct(Property.id)
+
+        # Sort by price with Property.id as secondary sort for deterministic ordering
         if sort_by == 'price_asc':
-            query = query.order_by(Case.current_price.asc())
+            query = query.order_by(recent_cases.c.current_price.asc(), Property.id.asc())
         else:  # price_desc or default
-            query = query.order_by(Case.current_price.desc())
+            # NULL prices go to the end
+            query = query.order_by(recent_cases.c.current_price.desc().nullslast(), Property.id.asc())
+
+        # Get total count before pagination
+        total = query.count()
+
+        # Apply pagination at database level
+        properties = query.offset((page - 1) * per_page).limit(per_page).all()
     else:
         sort_by_price = False
+        # Get total count first
+        total = query.count()
+
+        # Apply sorting at database level for non-price sorts
         if sort_by == 'size_desc':
-            query = query.order_by(Property.living_area.desc())
+            query = query.order_by(Property.living_area.desc(), Property.id.asc())
         elif sort_by == 'year_desc':
             if 'main_building' not in [str(m) for m in query.column_descriptions]:
                 query = query.join(Property.main_building)
-            query = query.order_by(MainBuilding.year_built.desc().nullslast())
+            query = query.order_by(MainBuilding.year_built.desc().nullslast(), Property.id.asc())
         elif sort_by == 'price_per_sqm_asc':
-            query = query.order_by((Property.latest_valuation / Property.living_area).asc())
+            query = query.order_by((Property.latest_valuation / Property.living_area).asc(), Property.id.asc())
 
-    # Apply distinct AGAIN after joins to eliminate duplicate rows from Case join
-    if sort_by_price:
-        query = query.distinct(Property.id)
-
-    # Get total count
-    total = query.count()
-
-    # Paginate
-    properties = query.offset((page - 1) * per_page).limit(per_page).all()
+        # Apply pagination at database level
+        properties = query.offset((page - 1) * per_page).limit(per_page).all()
 
     # Calculate area average price per m² (only for on-market properties)
     area_avg_price_per_sqm = {}
@@ -326,36 +355,62 @@ def text_search():
         # Apply distinct to avoid duplicate properties from filter subqueries
         query = query.distinct(Property.id)
 
-        # Apply sorting BEFORE counting and pagination
-        # If sorting by price, join with Case first to get current_price
+        # For price sorting, join with the most recent Case for each property
         if sort_by in ['price_asc', 'price_desc'] or sort_by is None or sort_by == '':
             sort_by_price = True
-            query = query.outerjoin(Case, Property.id == Case.property_id)
+            from sqlalchemy import func as sql_func
+
+            # Subquery to find the most recent case per property
+            recent_case_subquery = session.query(
+                Case.property_id,
+                Case.current_price,
+                sql_func.row_number().over(
+                    partition_by=Case.property_id,
+                    order_by=Case.created_date.desc()
+                ).label('rn')
+            ).subquery()
+
+            # Filter to only the most recent case (row_number = 1)
+            recent_cases = session.query(recent_case_subquery).filter(
+                recent_case_subquery.c.rn == 1
+            ).subquery()
+
+            # LEFT JOIN with the recent cases to preserve properties without cases
+            query = query.outerjoin(recent_cases, Property.id == recent_cases.c.property_id)
+
+            # Apply distinct again AFTER the join to eliminate duplicate rows from the join
+            query = query.distinct(Property.id)
+
+            # Sort by price with Property.id as secondary sort for deterministic ordering
             if sort_by == 'price_asc':
-                query = query.order_by(Case.current_price.asc())
+                query = query.order_by(recent_cases.c.current_price.asc(), Property.id.asc())
             else:  # price_desc or default
-                query = query.order_by(Case.current_price.desc())
+                # NULL prices go to the end
+                query = query.order_by(recent_cases.c.current_price.desc().nullslast(), Property.id.asc())
+
+            # Get total count before pagination
+            total = query.count()
+
+            # Apply pagination at database level
+            properties = query.offset((page - 1) * per_page).limit(per_page).all()
         else:
             sort_by_price = False
+            # Get total count first
+            total = query.count()
+
+            # Apply sorting at database level for non-price sorts
             if sort_by == 'size_desc':
-                query = query.order_by(Property.living_area.desc())
+                query = query.order_by(Property.living_area.desc(), Property.id.asc())
             elif sort_by == 'year_desc':
                 # Only join if we haven't already (for room/year filters)
                 if not any(str(entity.key[0]) == 'main_building' for entity in query.column_descriptions if hasattr(entity, 'key')):
                     query = query.join(Property.main_building)
-                query = query.order_by(MainBuilding.year_built.desc().nullslast())
+                query = query.order_by(MainBuilding.year_built.desc().nullslast(), Property.id.asc())
             elif sort_by == 'price_per_sqm_asc':
-                query = query.order_by((Property.latest_valuation / Property.living_area).asc())
+                query = query.order_by((Property.latest_valuation / Property.living_area).asc(), Property.id.asc())
 
-        # Apply distinct AGAIN after joins to eliminate duplicate rows from Case join
-        if sort_by_price:
-            query = query.distinct(Property.id)
-
-        # Get total count
-        total = query.count()
-
-        # Paginate
-        properties = query.offset((page - 1) * per_page).limit(per_page).all()
+            # Apply pagination at database level
+            properties = query.offset((page - 1) * per_page).limit(per_page).all()
 
         # Calculate area average price per m² for the municipality
         area_avg_price_per_sqm = {}

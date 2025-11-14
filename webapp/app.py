@@ -112,30 +112,32 @@ def search():
     # Apply distinct to avoid duplicate properties from filter subqueries
     query = query.distinct(Property.id)
 
+    # Apply sorting BEFORE counting and pagination
+    # If sorting by price, join with Case first to get current_price
+    if sort_by in ['price_asc', 'price_desc'] or sort_by is None or sort_by == '':
+        sort_by_price = True
+        query = query.outerjoin(Case, Property.id == Case.property_id)
+        if sort_by == 'price_asc':
+            query = query.order_by(Case.current_price.asc())
+        else:  # price_desc or default
+            query = query.order_by(Case.current_price.desc())
+    else:
+        sort_by_price = False
+        if sort_by == 'size_desc':
+            query = query.order_by(Property.living_area.desc())
+        elif sort_by == 'year_desc':
+            if 'main_building' not in [str(m) for m in query.column_descriptions]:
+                query = query.join(Property.main_building)
+            query = query.order_by(MainBuilding.year_built.desc().nullslast())
+        elif sort_by == 'price_per_sqm_asc':
+            query = query.order_by((Property.latest_valuation / Property.living_area).asc())
+
+    # Apply distinct AGAIN after joins to eliminate duplicate rows from Case join
+    if sort_by_price:
+        query = query.distinct(Property.id)
+
     # Get total count
     total = query.count()
-
-    # Apply sorting
-    if sort_by == 'price_asc':
-        # Sort by current_price (actual listing price) from most recent case
-        query = query.outerjoin(Case, Property.id == Case.property_id)
-        query = query.order_by(Case.current_price.asc())
-    elif sort_by == 'price_desc':
-        # Sort by current_price (actual listing price) from most recent case
-        query = query.outerjoin(Case, Property.id == Case.property_id)
-        query = query.order_by(Case.current_price.desc())
-    elif sort_by == 'size_desc':
-        query = query.order_by(Property.living_area.desc())
-    elif sort_by == 'year_desc':
-        if 'main_building' not in [str(m) for m in query.column_descriptions]:
-            query = query.join(Property.main_building)
-        query = query.order_by(MainBuilding.year_built.desc().nullslast())
-    elif sort_by == 'price_per_sqm_asc':
-        query = query.order_by((Property.latest_valuation / Property.living_area).asc())
-    else:  # default to price_desc
-        # Sort by current_price (actual listing price) from most recent case
-        query = query.outerjoin(Case, Property.id == Case.property_id)
-        query = query.order_by(Case.current_price.desc())
 
     # Paginate
     properties = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -324,31 +326,33 @@ def text_search():
         # Apply distinct to avoid duplicate properties from filter subqueries
         query = query.distinct(Property.id)
 
+        # Apply sorting BEFORE counting and pagination
+        # If sorting by price, join with Case first to get current_price
+        if sort_by in ['price_asc', 'price_desc'] or sort_by is None or sort_by == '':
+            sort_by_price = True
+            query = query.outerjoin(Case, Property.id == Case.property_id)
+            if sort_by == 'price_asc':
+                query = query.order_by(Case.current_price.asc())
+            else:  # price_desc or default
+                query = query.order_by(Case.current_price.desc())
+        else:
+            sort_by_price = False
+            if sort_by == 'size_desc':
+                query = query.order_by(Property.living_area.desc())
+            elif sort_by == 'year_desc':
+                # Only join if we haven't already (for room/year filters)
+                if not any(str(entity.key[0]) == 'main_building' for entity in query.column_descriptions if hasattr(entity, 'key')):
+                    query = query.join(Property.main_building)
+                query = query.order_by(MainBuilding.year_built.desc().nullslast())
+            elif sort_by == 'price_per_sqm_asc':
+                query = query.order_by((Property.latest_valuation / Property.living_area).asc())
+
+        # Apply distinct AGAIN after joins to eliminate duplicate rows from Case join
+        if sort_by_price:
+            query = query.distinct(Property.id)
+
         # Get total count
         total = query.count()
-
-        # Apply sorting
-        if sort_by == 'price_asc':
-            # Sort by current_price (actual listing price) from most recent case
-            query = query.outerjoin(Case, Property.id == Case.property_id)
-            query = query.order_by(Case.current_price.asc())
-        elif sort_by == 'price_desc':
-            # Sort by current_price (actual listing price) from most recent case
-            query = query.outerjoin(Case, Property.id == Case.property_id)
-            query = query.order_by(Case.current_price.desc())
-        elif sort_by == 'size_desc':
-            query = query.order_by(Property.living_area.desc())
-        elif sort_by == 'year_desc':
-            # Only join if we haven't already (for room/year filters)
-            if not any(str(entity.key[0]) == 'main_building' for entity in query.column_descriptions if hasattr(entity, 'key')):
-                query = query.join(Property.main_building)
-            query = query.order_by(MainBuilding.year_built.desc().nullslast())
-        elif sort_by == 'price_per_sqm_asc':
-            query = query.order_by((Property.latest_valuation / Property.living_area).asc())
-        else:  # Default to price_desc
-            # Sort by current_price (actual listing price) from most recent case
-            query = query.outerjoin(Case, Property.id == Case.property_id)
-            query = query.order_by(Case.current_price.desc())
 
         # Paginate
         properties = query.offset((page - 1) * per_page).limit(per_page).all()

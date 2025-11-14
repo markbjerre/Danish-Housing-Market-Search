@@ -66,8 +66,8 @@ def search():
     if on_market is None:
         # Default: only show properties currently on market with valid prices
         query = query.filter(Property.is_on_market == True)
-        # Join with cases to filter for properties with current prices
-        query = query.join(Property.cases).filter(Case.current_price.isnot(None)).distinct(Property.id)
+        # Filter for properties with at least one case that has a current price
+        query = query.filter(Property.cases.any(Case.current_price.isnot(None)))
     else:
         # User explicitly set the filter
         query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))

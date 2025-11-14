@@ -82,8 +82,8 @@
 
         .filters {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
             margin-bottom: 20px;
             align-items: start;
         }
@@ -1197,6 +1197,77 @@
                     q: query,
                     page: page
                 });
+
+                // Include ALL filter parameters from the UI (consistent with regular search)
+                const municipality = document.getElementById('municipality').value;
+                if (municipality && municipality !== 'all') {
+                    params.append('municipality', municipality);
+                }
+
+                // Add price filters
+                const minPrice = parseInt(minPriceSlider.value);
+                const maxPrice = parseInt(maxPriceSlider.value);
+                if (minPrice > 0) {
+                    params.append('min_price', minPrice);
+                }
+                if (maxPrice < 20000000) {
+                    params.append('max_price', maxPrice);
+                }
+
+                // Add area filters
+                const minArea = document.getElementById('min_area').value;
+                if (minArea) {
+                    params.append('min_area', minArea);
+                }
+                const maxArea = document.getElementById('max_area').value;
+                if (maxArea) {
+                    params.append('max_area', maxArea);
+                }
+
+                // Add room filters
+                const minRooms = document.getElementById('min_rooms').value;
+                if (minRooms) {
+                    params.append('min_rooms', minRooms);
+                }
+                const maxRooms = document.getElementById('max_rooms').value;
+                if (maxRooms) {
+                    params.append('max_rooms', maxRooms);
+                }
+
+                // Add year filters
+                const minYear = document.getElementById('min_year').value;
+                if (minYear) {
+                    params.append('min_year', minYear);
+                }
+                const maxYear = document.getElementById('max_year').value;
+                if (maxYear) {
+                    params.append('max_year', maxYear);
+                }
+
+                // Add market status filter
+                const onMarket = document.getElementById('on_market').value;
+                if (onMarket) {
+                    params.append('on_market', onMarket);
+                }
+
+                // Add realtor filter
+                const realtor = document.getElementById('realtor').value;
+                if (realtor) {
+                    params.append('realtor', realtor);
+                }
+
+                // Add days on market filters
+                const minDays = document.getElementById('min_days').value;
+                if (minDays) {
+                    params.append('min_days_on_market', minDays);
+                }
+                const maxDays = document.getElementById('max_days').value;
+                if (maxDays) {
+                    params.append('max_days_on_market', maxDays);
+                }
+
+                const sortBy = document.getElementById('sort_by')?.value || 'price_desc';
+                params.append('sort_by', sortBy);
 
                 const response = await fetch(`/housing/api/text-search?${params}`);
                 const data = await response.json();

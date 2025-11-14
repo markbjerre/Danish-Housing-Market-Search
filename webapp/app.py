@@ -208,12 +208,28 @@ def text_search():
     """Search properties by text (address, city, municipality)"""
     try:
         session = db.get_session()
-        
+
         # Get search query
         query_text = request.args.get('q', '').strip()
         page = request.args.get('page', 1, type=int)
+        sort_by = request.args.get('sort_by', 'price_desc')  # Sort parameter
         per_page = 50
-        
+
+        # Get ALL filter parameters (same as regular /api/search)
+        on_market = request.args.get('on_market')  # 'true', 'false', or None
+        municipality = request.args.get('municipality')
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        min_area = request.args.get('min_area', type=float)
+        max_area = request.args.get('max_area', type=float)
+        min_rooms = request.args.get('min_rooms', type=int)
+        max_rooms = request.args.get('max_rooms', type=int)
+        min_year = request.args.get('min_year', type=int)
+        max_year = request.args.get('max_year', type=int)
+        realtor = request.args.get('realtor')
+        min_days_on_market = request.args.get('min_days_on_market', type=int)
+        max_days_on_market = request.args.get('max_days_on_market', type=int)
+
         if not query_text or len(query_text) < 2:
             session.close()
             return jsonify({
@@ -225,7 +241,7 @@ def text_search():
                 'per_page': per_page,
                 'total_pages': 0
             }), 400
-        
+
         # Build search query - search across multiple fields
         # Cast zip_code to string for text comparison
         search_filter = or_(
@@ -235,35 +251,130 @@ def text_search():
             Municipality.name.ilike(f'%{query_text}%'),
             func.cast(Property.zip_code, String).ilike(f'%{query_text}%'),
         )
-        
+
         query = session.query(Property).join(Property.municipality_info).filter(search_filter)
-        
+
+        # Apply market status filter
+        if on_market is None or on_market == '':
+            # Default or "All Properties" selected: only show properties currently on market
+            query = query.filter(Property.is_on_market == True)
+        elif on_market.lower() == 'true':
+            # "On Market Only" selected
+            query = query.filter(Property.is_on_market == True)
+        elif on_market.lower() == 'false':
+            # "Sold Properties" selected
+            query = query.filter(Property.is_on_market == False)
+
+        # Apply municipality filter if provided
+        if municipality and municipality != 'all':
+            query = query.filter(Municipality.name == municipality)
+
+        # Apply price filters
+        if min_price:
+            query = query.filter(Property.latest_valuation >= min_price)
+        if max_price:
+            query = query.filter(Property.latest_valuation <= max_price)
+
+        # Apply area filters
+        if min_area:
+            query = query.filter(Property.living_area >= min_area)
+        if max_area:
+            query = query.filter(Property.living_area <= max_area)
+
+        # Apply room and year filters (requires join with MainBuilding)
+        if min_rooms or max_rooms or min_year or max_year:
+            query = query.join(Property.main_building)
+
+            if min_rooms:
+                query = query.filter(MainBuilding.number_of_rooms >= min_rooms)
+            if max_rooms:
+                query = query.filter(MainBuilding.number_of_rooms <= max_rooms)
+
+            if min_year:
+                query = query.filter(MainBuilding.year_built >= min_year)
+            if max_year:
+                query = query.filter(MainBuilding.year_built <= max_year)
+
         # Get total count
         total = query.count()
-        
-        # Default sort by price descending
-        query = query.order_by(Property.latest_valuation.desc())
-        
+
+        # Apply sorting
+        if sort_by == 'price_asc':
+            query = query.order_by(Property.latest_valuation.asc())
+        elif sort_by == 'price_desc':
+            query = query.order_by(Property.latest_valuation.desc())
+        elif sort_by == 'size_desc':
+            query = query.order_by(Property.living_area.desc())
+        elif sort_by == 'year_desc':
+            # Only join if we haven't already (for room/year filters)
+            if not any(str(entity.key[0]) == 'main_building' for entity in query.column_descriptions if hasattr(entity, 'key')):
+                query = query.join(Property.main_building)
+            query = query.order_by(MainBuilding.year_built.desc().nullslast())
+        elif sort_by == 'price_per_sqm_asc':
+            query = query.order_by((Property.latest_valuation / Property.living_area).asc())
+        else:  # Default to price_desc
+            query = query.order_by(Property.latest_valuation.desc())
+
         # Paginate
         properties = query.offset((page - 1) * per_page).limit(per_page).all()
-        
+
+        # Calculate area average price per m² for the municipality
+        area_avg_price_per_sqm = {}
+        if properties:
+            municipality_names = set(p.municipality_info.name for p in properties if p.municipality_info)
+            for mun_name in municipality_names:
+                avg_query = session.query(func.avg(Property.latest_valuation / Property.living_area)).join(
+                    Property.municipality_info
+                ).filter(
+                    Municipality.name == mun_name,
+                    Property.is_on_market == True,
+                    Property.latest_valuation.isnot(None),
+                    Property.living_area.isnot(None),
+                    Property.living_area > 0
+                ).scalar()
+                if avg_query:
+                    area_avg_price_per_sqm[mun_name] = round(avg_query, 2)
+
         # Format results
         results = []
         for prop in properties:
+            # Get building info
+            building = prop.main_building
+            municipality_obj = prop.municipality_info
+            municipality_name = municipality_obj.name if municipality_obj else 'N/A'
+
+            # Use latest_valuation as price (consistent with /api/search)
+            price = prop.latest_valuation
+
+            # Calculate price per m²
+            price_per_sqm = None
+            if price and prop.living_area and prop.living_area > 0:
+                price_per_sqm = round(price / prop.living_area, 2)
+
             results.append({
                 'id': prop.id,
                 'address': f"{prop.road_name} {prop.house_number}",
                 'city': prop.city_name,
                 'zip_code': prop.zip_code,
-                'municipality': prop.municipality_info.name if prop.municipality_info else None,
-                'price': prop.latest_valuation,
-                'area': prop.living_area,
+                'municipality': municipality_name,
+                'price': price,
+                'living_area': prop.living_area,
+                'price_per_sqm': price_per_sqm,
+                'area_avg_price_per_sqm': area_avg_price_per_sqm.get(municipality_name),
+                'rooms': building.number_of_rooms if building else None,
+                'year_built': building.year_built if building else None,
+                'energy_label': prop.energy_label,
+                'latitude': prop.latitude,
+                'longitude': prop.longitude,
+                'on_market': prop.is_on_market,
                 'slug': prop.slug,
-                'is_on_market': prop.is_on_market,
+                'realtors': [],
+                'days_on_market': None,
+                'image_url': None
             })
-        
+
         session.close()
-        
+
         return jsonify({
             'success': True,
             'results': results,
@@ -272,7 +383,7 @@ def text_search():
             'per_page': per_page,
             'total_pages': (total + per_page - 1) // per_page
         })
-    
+
     except Exception as e:
         return jsonify({
             'success': False,

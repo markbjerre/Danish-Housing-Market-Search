@@ -414,9 +414,9 @@
     <nav>
         <div class="logo">🏠 Copenhagen Homes</div>
         <ul class="nav-links">
-            <li><a href="/housing/">Home</a></li>
-            <li><a href="/housing/search">Search</a></li>
-            <li><a href="/housing/score-calculator">Score Calculator</a></li>
+            <li><a href="./">Home</a></li>
+            <li><a href="./search">Search</a></li>
+            <li><a href="./score-calculator">Score Calculator</a></li>
         </ul>
     </nav>
 
@@ -492,7 +492,7 @@
     <div class="cta">
         <h2>Ready to Find Your Perfect Home?</h2>
         <p>Start exploring thousands of properties in Copenhagen and surrounding areas</p>
-        <a href="/housing/search" class="cta-btn">Start Searching Now →</a>
+        <a href="/search" class="cta-btn">Start Searching Now →</a>
     </div>
 
     <!-- Footer -->
@@ -501,12 +501,52 @@
     </footer>
 
     <script>
+        // Detect base path and fix navigation links for both localhost and production
+        // At localhost: window.location.pathname = /housing (or /housing/)
+        // At production: Traefik strips /housing, but we're served at /housing/... so relative paths work
+        function getBasePath() {
+            const path = window.location.pathname;
+            // If path includes /housing, return it; otherwise assume root
+            if (path.includes('/housing')) {
+                return '/housing';
+            }
+            return '';
+        }
+
+        // Fix navigation links on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const basePath = getBasePath();
+            if (basePath) {
+                // Update all navigation links
+                document.querySelectorAll('nav a').forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href === './' || href === './search' || href === './score-calculator') {
+                        // Convert relative paths to absolute paths with basePath
+                        const newHref = href.replace('./', basePath + '/');
+                        link.setAttribute('href', newHref);
+                    }
+                });
+
+                // Update CTA button
+                const ctaBtn = document.querySelector('.cta-btn');
+                if (ctaBtn) {
+                    const href = ctaBtn.getAttribute('href');
+                    if (href === './search') {
+                        ctaBtn.setAttribute('href', basePath + '/search');
+                    }
+                }
+            }
+        });
+
         function goToSearch() {
+            const basePath = getBasePath();
             const searchTerm = document.getElementById('quickSearch').value;
+            const baseUrl = basePath ? basePath : '';
+
             if (searchTerm) {
-                window.location.href = `./search?q=${encodeURIComponent(searchTerm)}`;
+                window.location.href = `${baseUrl}/search?q=${encodeURIComponent(searchTerm)}`;
             } else {
-                window.location.href = './search';
+                window.location.href = `${baseUrl}/search`;
             }
         }
 

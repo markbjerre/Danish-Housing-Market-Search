@@ -108,7 +108,10 @@ def search():
             query = query.filter(MainBuilding.year_built >= min_year)
         if max_year:
             query = query.filter(MainBuilding.year_built <= max_year)
-    
+
+    # Apply distinct to avoid duplicate properties from filter subqueries
+    query = query.distinct(Property.id)
+
     # Get total count
     total = query.count()
     
@@ -319,6 +322,9 @@ def text_search():
                 query = query.filter(MainBuilding.year_built >= min_year)
             if max_year:
                 query = query.filter(MainBuilding.year_built <= max_year)
+
+        # Apply distinct to avoid duplicate properties from filter subqueries
+        query = query.distinct(Property.id)
 
         # Get total count
         total = query.count()

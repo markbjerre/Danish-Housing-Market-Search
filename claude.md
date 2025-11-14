@@ -96,6 +96,12 @@ Danish-Housing-Market-Search/
 
 When working on this project, please:
 
+### Testing & Commits
+- **Test locally first**: Thoroughly test all changes locally before committing to git. This saves significant time and prevents deployment issues.
+- **Commit frequently**: Aim to submit commits to git approximately every 45 minutes. This keeps progress visible and enables rollback if needed.
+- **Traefik compatibility**: Always test navigation and URLs work on both localhost (`http://localhost:5000/housing`) and production (`https://ai-vaerksted.cloud/housing`) before committing.
+
+### Code Quality
 - **Challenge assumptions**: Question if the user's approach might have issues or if there's better logic available
 - **Ask for clarity**: Request elaboration when instructions are vague or where context could provide significant additional value
 - **Strive for simplicity**: Prefer simple solutions over complex ones; prevent unnecessary file proliferation

@@ -64,8 +64,10 @@ def search():
     # By default, only show properties on market (active listings)
     # User can override with on_market=false to see off-market properties
     if on_market is None:
-        # Default: only show properties currently on market
+        # Default: only show properties currently on market with valid prices
         query = query.filter(Property.is_on_market == True)
+        # Join with cases to filter for properties with current prices
+        query = query.join(Property.cases).filter(models.Case.current_price.isnot(None)).distinct()
     else:
         # User explicitly set the filter
         query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))
@@ -119,11 +121,7 @@ def search():
     
     # Paginate
     properties = query.offset((page - 1) * per_page).limit(per_page).all()
-    
-    # Post-process to filter for properties with prices when showing on-market
-    if on_market is None:  # Default case - show only properties with prices
-        properties = [p for p in properties if p.cases and any(c.current_price for c in p.cases)]
-    
+
     # Calculate area average price per m² (only for on-market properties)
     area_avg_price_per_sqm = {}
     if municipality and municipality != 'all':

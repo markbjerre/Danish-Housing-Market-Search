@@ -75,11 +75,20 @@ def search():
     # Apply filters
     if municipality and municipality != 'all':
         query = query.filter(Municipality.name == municipality)
-    
-    if min_price:
-        query = query.filter(Property.latest_valuation >= min_price)
-    if max_price:
-        query = query.filter(Property.latest_valuation <= max_price)
+
+    # Apply price filters to current_price from cases (not latest_valuation)
+    # This ensures returned prices match the filter criteria
+    if min_price or max_price:
+        # Use subquery to avoid duplicate rows from case join
+        case_subquery = session.query(Case.property_id).filter(
+            Case.property_id == Property.id
+        )
+        if min_price:
+            case_subquery = case_subquery.filter(Case.current_price >= min_price)
+        if max_price:
+            case_subquery = case_subquery.filter(Case.current_price <= max_price)
+
+        query = query.filter(case_subquery.exists())
     
     if min_area:
         query = query.filter(Property.living_area >= min_area)
@@ -277,11 +286,19 @@ def text_search():
         if municipality and municipality != 'all':
             query = query.filter(Municipality.name == municipality)
 
-        # Apply price filters
-        if min_price:
-            query = query.filter(Property.latest_valuation >= min_price)
-        if max_price:
-            query = query.filter(Property.latest_valuation <= max_price)
+        # Apply price filters to current_price from cases (not latest_valuation)
+        # This ensures returned prices match the filter criteria
+        if min_price or max_price:
+            # Use subquery to avoid duplicate rows from case join
+            case_subquery = session.query(Case.property_id).filter(
+                Case.property_id == Property.id
+            )
+            if min_price:
+                case_subquery = case_subquery.filter(Case.current_price >= min_price)
+            if max_price:
+                case_subquery = case_subquery.filter(Case.current_price <= max_price)
+
+            query = query.filter(case_subquery.exists())
 
         # Apply area filters
         if min_area:
@@ -303,7 +320,7 @@ def text_search():
             if max_year:
                 query = query.filter(MainBuilding.year_built <= max_year)
 
-        # Get total count
+        # Get total before pagination
         total = query.count()
 
         # Apply sorting
@@ -313,35 +330,11 @@ def text_search():
             query = query.order_by(Property.latest_valuation.desc())
         elif sort_by == 'size_desc':
             query = query.order_by(Property.living_area.desc())
-        elif sort_by == 'year_desc':
-            # Only join if we haven't already (for room/year filters)
-            if not any(str(entity.key[0]) == 'main_building' for entity in query.column_descriptions if hasattr(entity, 'key')):
-                query = query.join(Property.main_building)
-            query = query.order_by(MainBuilding.year_built.desc().nullslast())
-        elif sort_by == 'price_per_sqm_asc':
-            query = query.order_by((Property.latest_valuation / Property.living_area).asc())
-        else:  # Default to price_desc
+        else:  # default
             query = query.order_by(Property.latest_valuation.desc())
 
         # Paginate
         properties = query.offset((page - 1) * per_page).limit(per_page).all()
-
-        # Calculate area average price per m² for the municipality
-        area_avg_price_per_sqm = {}
-        if properties:
-            municipality_names = set(p.municipality_info.name for p in properties if p.municipality_info)
-            for mun_name in municipality_names:
-                avg_query = session.query(func.avg(Property.latest_valuation / Property.living_area)).join(
-                    Property.municipality_info
-                ).filter(
-                    Municipality.name == mun_name,
-                    Property.is_on_market == True,
-                    Property.latest_valuation.isnot(None),
-                    Property.living_area.isnot(None),
-                    Property.living_area > 0
-                ).scalar()
-                if avg_query:
-                    area_avg_price_per_sqm[mun_name] = round(avg_query, 2)
 
         # Format results
         results = []
@@ -351,13 +344,16 @@ def text_search():
             municipality_obj = prop.municipality_info
             municipality_name = municipality_obj.name if municipality_obj else 'N/A'
 
-            # Use latest_valuation as price (consistent with /api/search)
-            price = prop.latest_valuation
+            # Get current listing price from most recent case
+            current_price = None
+            if prop.cases:
+                latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
+                current_price = latest_case.current_price
 
             # Calculate price per m²
             price_per_sqm = None
-            if price and prop.living_area and prop.living_area > 0:
-                price_per_sqm = round(price / prop.living_area, 2)
+            if current_price and prop.living_area and prop.living_area > 0:
+                price_per_sqm = round(current_price / prop.living_area, 2)
 
             results.append({
                 'id': prop.id,
@@ -365,20 +361,16 @@ def text_search():
                 'city': prop.city_name,
                 'zip_code': prop.zip_code,
                 'municipality': municipality_name,
-                'price': price,
+                'price': current_price,
                 'living_area': prop.living_area,
                 'price_per_sqm': price_per_sqm,
-                'area_avg_price_per_sqm': area_avg_price_per_sqm.get(municipality_name),
                 'rooms': building.number_of_rooms if building else None,
                 'year_built': building.year_built if building else None,
                 'energy_label': prop.energy_label,
                 'latitude': prop.latitude,
                 'longitude': prop.longitude,
                 'on_market': prop.is_on_market,
-                'slug': prop.slug,
-                'realtors': [],
-                'days_on_market': None,
-                'image_url': None
+                'slug': prop.slug
             })
 
         # Re-sort results by price if price sorting was requested
@@ -397,237 +389,16 @@ def text_search():
         })
 
     except Exception as e:
+        session.close()
         return jsonify({
             'success': False,
-            'error': f'Search error: {str(e)}'
+            'error': str(e),
+            'results': [],
+            'total': 0,
+            'page': 1,
+            'per_page': 50,
+            'total_pages': 0
         }), 500
 
-@app.route('/api/property/<property_id>')
-def api_property_detail(property_id):
-    """API endpoint for detailed property information"""
-    session = db.get_session()
-    try:
-        prop = session.query(Property).filter(Property.id == property_id).first()
-        
-        if not prop:
-            return jsonify({'error': 'Property not found'}), 404
-        
-        # Get all related data
-        building = prop.main_building
-        municipality = prop.municipality_info
-        registrations = prop.registrations or []
-        
-        # Format detailed response
-        result = {
-            # Basic info
-            'id': str(prop.id),
-            'address': f"{prop.road_name or ''} {prop.house_number or ''}".strip(),
-            'door': prop.door,
-            'floor': prop.floor,
-            'city': prop.city_name,
-            'zip_code': prop.zip_code,
-            'place_name': prop.place_name,
-            
-            # Property details
-            'living_area': float(prop.living_area) if prop.living_area else None,
-            'weighted_area': float(prop.weighted_area) if prop.weighted_area else None,
-            'latest_valuation': float(prop.latest_valuation) if prop.latest_valuation else None,
-            'property_number': prop.property_number,
-            'energy_label': prop.energy_label,
-            'on_market': prop.is_on_market,
-            
-            # Location
-            'latitude': float(prop.latitude) if prop.latitude else None,
-            'longitude': float(prop.longitude) if prop.longitude else None,
-            
-            # Municipality info
-            'municipality': {
-                'name': municipality.name if municipality else None,
-                'code': municipality.municipality_code if municipality else None,
-            } if municipality else None,
-            
-            # Main building
-            'main_building': {
-                'year_built': building.year_built if building else None,
-                'year_renovated': building.year_renovated if building else None,
-                'number_of_rooms': building.number_of_rooms if building else None,
-                'number_of_bathrooms': building.number_of_bathrooms if building else None,
-                'total_area': float(building.total_area) if building and building.total_area else None,
-            } if building else None,
-            
-            # Registration history (last 5 transactions)
-            'registrations': [
-                {
-                    'date': r.date.isoformat() if r.date else None,
-                    'amount': float(r.amount) if r.amount else None,
-                    'area': float(r.area) if r.area else None,
-                    'type': r.type,
-                } for r in sorted(registrations, key=lambda x: x.date or '', reverse=True)[:5]
-            ] if registrations else [],
-            
-            # Technical identifiers
-            'slug': prop.slug,
-        }
-        
-        return jsonify(result)
-    
-    except Exception as e:
-        return jsonify({'error': f'Error fetching property: {str(e)}'}), 500
-    finally:
-        session.close()
-
-@app.route('/property/<property_id>')
-def property_detail(property_id):
-    """Get detailed information for a specific property"""
-    session = db.get_session()
-    
-    prop = session.query(Property).filter(Property.id == property_id).first()
-    
-    if not prop:
-        session.close()
-        return jsonify({'error': 'Property not found'}), 404
-    
-    # Get all related data
-    building = prop.main_building
-    municipality = prop.municipality_info
-    province = prop.province_info
-    registrations = prop.registrations
-    additional_buildings = prop.additional_buildings
-    
-    # Format detailed response
-    result = {
-        # Basic info
-        'id': prop.id,
-        'address': f"{prop.road_name} {prop.house_number}",
-        'door': prop.door,
-        'floor': prop.floor,
-        'city': prop.city_name,
-        'zip_code': prop.zip_code,
-        'place_name': prop.place_name,
-        
-        # Property details
-        'living_area': prop.living_area,
-        'weighted_area': prop.weighted_area,
-        'latest_valuation': prop.latest_valuation,
-        'property_number': prop.property_number,
-        'energy_label': prop.energy_label,
-        'on_market': prop.is_on_market,
-        
-        # Location
-        'latitude': prop.latitude,
-        'longitude': prop.longitude,
-        
-        # Municipality info
-        'municipality': {
-            'name': municipality.name if municipality else None,
-            'code': municipality.municipality_code if municipality else None,
-            'population': municipality.population if municipality else None,
-            'church_tax': municipality.church_tax_percentage if municipality else None,
-            'council_tax': municipality.council_tax_percentage if municipality else None,
-            'number_of_schools': municipality.number_of_schools if municipality else None,
-        } if municipality else None,
-        
-        # Province info
-        'province': {
-            'name': province.name if province else None,
-            'code': province.province_code if province else None,
-        } if province else None,
-        
-        # Main building
-        'main_building': {
-            'year_built': building.year_built if building else None,
-            'year_renovated': building.year_renovated if building else None,
-            'building_name': building.building_name if building else None,
-            'number_of_floors': building.number_of_floors if building else None,
-            'number_of_rooms': building.number_of_rooms if building else None,
-            'number_of_bathrooms': building.number_of_bathrooms if building else None,
-            'number_of_toilets': building.number_of_toilets if building else None,
-            'housing_area': building.housing_area if building else None,
-            'business_area': building.business_area if building else None,
-            'basement_area': building.basement_area if building else None,
-            'total_area': building.total_area if building else None,
-            'external_wall_material': building.external_wall_material if building else None,
-            'roofing_material': building.roofing_material if building else None,
-            'heating_installation': building.heating_installation if building else None,
-            'supplementary_heating': building.supplementary_heating if building else None,
-            'kitchen_condition': building.kitchen_condition if building else None,
-            'bathroom_condition': building.bathroom_condition if building else None,
-            'toilet_condition': building.toilet_condition if building else None,
-        } if building else None,
-        
-        # Additional buildings
-        'additional_buildings': [
-            {
-                'building_name': b.building_name,
-                'building_number': b.building_number,
-                'year_built': b.year_built,
-                'total_area': b.total_area,
-            } for b in additional_buildings
-        ] if additional_buildings else [],
-        
-        # Registration history
-        'registrations': [
-            {
-                'date': r.date,
-                'amount': r.amount,
-                'area': r.area,
-                'type': r.type,
-            } for r in sorted(registrations, key=lambda x: x.date, reverse=True)
-        ] if registrations else [],
-        
-        # Technical identifiers
-        'gstkvhx': prop.gstkvhx,
-        'entry_address_id': prop.entry_address_id,
-        'slug': prop.slug,
-    }
-    
-    session.close()
-    
-    return jsonify(result)
-
-@app.route('/stats')
-def stats():
-    """Get database statistics"""
-    session = db.get_session()
-    
-    total_properties = session.query(Property).count()
-    
-    # Properties by municipality
-    by_municipality = session.query(
-        Municipality.name,
-        func.count(Property.id)
-    ).join(Property.municipality_info).group_by(Municipality.name).order_by(func.count(Property.id).desc()).all()
-    
-    # Price statistics
-    price_stats = session.query(
-        func.avg(Property.latest_valuation),
-        func.min(Property.latest_valuation),
-        func.max(Property.latest_valuation)
-    ).filter(Property.latest_valuation.isnot(None)).first()
-    
-    # Area statistics
-    area_stats = session.query(
-        func.avg(Property.living_area),
-        func.min(Property.living_area),
-        func.max(Property.living_area)
-    ).filter(Property.living_area.isnot(None)).first()
-    
-    session.close()
-    
-    return jsonify({
-        'total_properties': total_properties,
-        'by_municipality': [{'name': m[0], 'count': m[1]} for m in by_municipality],
-        'price_stats': {
-            'avg': price_stats[0],
-            'min': price_stats[1],
-            'max': price_stats[2],
-        } if price_stats else None,
-        'area_stats': {
-            'avg': area_stats[0],
-            'min': area_stats[1],
-            'max': area_stats[2],
-        } if area_stats else None,
-    })
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)

@@ -234,13 +234,12 @@ def test_pagination():
         ids2 = {p["id"] for p in d2["results"]}
 
         overlap = len(ids1.intersection(ids2))
-        # Allow up to 30% overlap due to post-sort re-ordering and distinct() limitations
-        max_allowed_overlap = 15  # 30% of 50 results
-        acceptable_overlap = overlap <= max_allowed_overlap
+        # Should have zero overlap since sorting is now done at database level
+        no_overlap = overlap == 0
         print_test(
-            "Pagination returns mostly different results",
-            acceptable_overlap,
-            f"Page 1: {len(ids1)} results, Page 2: {len(ids2)} results, overlap: {overlap}/{max_allowed_overlap} allowed"
+            "Pagination returns different results",
+            no_overlap,
+            f"Page 1: {len(ids1)} results, Page 2: {len(ids2)} results, overlap: {overlap}"
         )
     except Exception as e:
         print_test("Pagination", False, str(e))

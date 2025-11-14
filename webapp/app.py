@@ -114,16 +114,16 @@ def search():
 
     # Get total count
     total = query.count()
-    
+
     # Apply sorting
     if sort_by == 'price_asc':
-        # Sort by latest_valuation as a proxy for listing price
-        # (current_price is calculated post-query from most recent case)
-        query = query.order_by(Property.latest_valuation.asc())
+        # Sort by current_price (actual listing price) from most recent case
+        query = query.outerjoin(Case, Property.id == Case.property_id)
+        query = query.order_by(Case.current_price.asc())
     elif sort_by == 'price_desc':
-        # Sort by latest_valuation as a proxy for listing price
-        # (current_price is calculated post-query from most recent case)
-        query = query.order_by(Property.latest_valuation.desc())
+        # Sort by current_price (actual listing price) from most recent case
+        query = query.outerjoin(Case, Property.id == Case.property_id)
+        query = query.order_by(Case.current_price.desc())
     elif sort_by == 'size_desc':
         query = query.order_by(Property.living_area.desc())
     elif sort_by == 'year_desc':
@@ -133,9 +133,9 @@ def search():
     elif sort_by == 'price_per_sqm_asc':
         query = query.order_by((Property.latest_valuation / Property.living_area).asc())
     else:  # default to price_desc
-        # Sort by latest_valuation as a proxy for listing price
-        # (current_price is calculated post-query from most recent case)
-        query = query.order_by(Property.latest_valuation.desc())
+        # Sort by current_price (actual listing price) from most recent case
+        query = query.outerjoin(Case, Property.id == Case.property_id)
+        query = query.order_by(Case.current_price.desc())
 
     # Paginate
     properties = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -209,9 +209,7 @@ def search():
             'days_on_market': days_on_market
         })
 
-    # Re-sort results by price if price sorting was requested (since current_price is calculated post-query)
-    if sort_by in ['price_asc', 'price_desc']:
-        results.sort(key=lambda r: r['price'] if r['price'] is not None else -1, reverse=(sort_by == 'price_desc'))
+    # No need to re-sort - database handles sorting by current_price now
     
     session.close()
     
@@ -331,9 +329,13 @@ def text_search():
 
         # Apply sorting
         if sort_by == 'price_asc':
-            query = query.order_by(Property.latest_valuation.asc())
+            # Sort by current_price (actual listing price) from most recent case
+            query = query.outerjoin(Case, Property.id == Case.property_id)
+            query = query.order_by(Case.current_price.asc())
         elif sort_by == 'price_desc':
-            query = query.order_by(Property.latest_valuation.desc())
+            # Sort by current_price (actual listing price) from most recent case
+            query = query.outerjoin(Case, Property.id == Case.property_id)
+            query = query.order_by(Case.current_price.desc())
         elif sort_by == 'size_desc':
             query = query.order_by(Property.living_area.desc())
         elif sort_by == 'year_desc':
@@ -344,7 +346,9 @@ def text_search():
         elif sort_by == 'price_per_sqm_asc':
             query = query.order_by((Property.latest_valuation / Property.living_area).asc())
         else:  # Default to price_desc
-            query = query.order_by(Property.latest_valuation.desc())
+            # Sort by current_price (actual listing price) from most recent case
+            query = query.outerjoin(Case, Property.id == Case.property_id)
+            query = query.order_by(Case.current_price.desc())
 
         # Paginate
         properties = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -404,9 +408,7 @@ def text_search():
                 'image_url': None
             })
 
-        # Re-sort results by price if price sorting was requested
-        if sort_by in ['price_asc', 'price_desc']:
-            results.sort(key=lambda r: r['price'] if r['price'] is not None else -1, reverse=(sort_by == 'price_desc'))
+        # No need to re-sort - database handles sorting by current_price now
 
         session.close()
 

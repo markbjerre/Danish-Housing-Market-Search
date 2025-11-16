@@ -1,10 +1,20 @@
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime
 import sys
+import logging
 sys.path.append('..')
 from src.database import db
 from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province, Case
 from sqlalchemy import func, or_, and_, String, distinct
+from src.scoring import (
+    CompositeScorer,
+    PersonaManager,
+    ScorePercentileCalculator,
+    ScoreInterpretation,
+    AggregateCalculator
+)
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -37,220 +47,315 @@ def score_calculator():
 
 @app.route('/api/search')
 def search():
-    """Search properties with filters"""
+    """Search properties with filters and optional scoring"""
     session = db.get_session()
+
+    try:
+        # Get filter parameters
+        municipality = request.args.get('municipality')
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        min_area = request.args.get('min_area', type=float)
+        max_area = request.args.get('max_area', type=float)
+        min_rooms = request.args.get('min_rooms', type=int)
+        max_rooms = request.args.get('max_rooms', type=int)
+        min_year = request.args.get('min_year', type=int)
+        max_year = request.args.get('max_year', type=int)
+        on_market = request.args.get('on_market')  # 'true', 'false', or None
+        realtor = request.args.get('realtor')
+        min_days_on_market = request.args.get('min_days_on_market', type=int)
+        max_days_on_market = request.args.get('max_days_on_market', type=int)
+        sort_by = request.args.get('sort_by', 'price_desc')  # Default sort
+        page = request.args.get('page', 1, type=int)
+        per_page = 50  # Increased from 20 to 50
+
+        # Phase 2: Scoring parameters
+        min_score = request.args.get('min_score', type=float)
+        max_score = request.args.get('max_score', type=float)
+        persona = request.args.get('persona', 'balanced')  # Default persona for scoring
     
-    # Get filter parameters
-    municipality = request.args.get('municipality')
-    min_price = request.args.get('min_price', type=float)
-    max_price = request.args.get('max_price', type=float)
-    min_area = request.args.get('min_area', type=float)
-    max_area = request.args.get('max_area', type=float)
-    min_rooms = request.args.get('min_rooms', type=int)
-    max_rooms = request.args.get('max_rooms', type=int)
-    min_year = request.args.get('min_year', type=int)
-    max_year = request.args.get('max_year', type=int)
-    on_market = request.args.get('on_market')  # 'true', 'false', or None
-    realtor = request.args.get('realtor')
-    min_days_on_market = request.args.get('min_days_on_market', type=int)
-    max_days_on_market = request.args.get('max_days_on_market', type=int)
-    sort_by = request.args.get('sort_by', 'price_desc')  # Default sort
-    page = request.args.get('page', 1, type=int)
-    per_page = 50  # Increased from 20 to 50
-    
-    # Build query
-    query = session.query(Property).join(Property.municipality_info)
-    
-    # By default, only show properties on market (active listings)
-    # User can override with on_market=false to see off-market properties
-    if on_market is None:
-        # Default: only show properties currently on market with valid prices
-        query = query.filter(Property.is_on_market == True)
-        # Filter for properties with at least one case that has a current price
-        query = query.filter(Property.cases.any(Case.current_price.isnot(None)))
-    else:
-        # User explicitly set the filter
-        query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))
-    
-    # Apply filters
-    if municipality and municipality != 'all':
-        query = query.filter(Municipality.name == municipality)
+        # Build query
+        query = session.query(Property).join(Property.municipality_info)
 
-    # Apply price filters to current_price from cases (not latest_valuation)
-    # This ensures returned prices match the filter criteria
-    if min_price or max_price:
-        # Use subquery to avoid duplicate rows from case join
-        case_subquery = session.query(Case.property_id).filter(
-            Case.property_id == Property.id
-        )
-        if min_price:
-            case_subquery = case_subquery.filter(Case.current_price >= min_price)
-        if max_price:
-            case_subquery = case_subquery.filter(Case.current_price <= max_price)
+        # By default, only show properties on market (active listings)
+        # User can override with on_market=false to see off-market properties
+        if on_market is None:
+            # Default: only show properties currently on market with valid prices
+            query = query.filter(Property.is_on_market == True)
+            # Filter for properties with at least one case that has a current price
+            query = query.filter(Property.cases.any(Case.current_price.isnot(None)))
+        else:
+            # User explicitly set the filter
+            query = query.filter(Property.is_on_market == (on_market.lower() == 'true'))
 
-        query = query.filter(case_subquery.exists())
-    
-    if min_area:
-        query = query.filter(Property.living_area >= min_area)
-    if max_area:
-        query = query.filter(Property.living_area <= max_area)
-    
-    # Join with MainBuilding for rooms and year filters
-    if min_rooms or max_rooms or min_year or max_year:
-        query = query.join(Property.main_building)
-        
-        if min_rooms:
-            query = query.filter(MainBuilding.number_of_rooms >= min_rooms)
-        if max_rooms:
-            query = query.filter(MainBuilding.number_of_rooms <= max_rooms)
-        
-        if min_year:
-            query = query.filter(MainBuilding.year_built >= min_year)
-        if max_year:
-            query = query.filter(MainBuilding.year_built <= max_year)
+        # Apply filters
+        if municipality and municipality != 'all':
+            query = query.filter(Municipality.name == municipality)
 
-    # Apply distinct to avoid duplicate properties from filter subqueries
-    query = query.distinct(Property.id)
+        # Apply price filters to current_price from cases (not latest_valuation)
+        # This ensures returned prices match the filter criteria
+        if min_price or max_price:
+            # Use subquery to avoid duplicate rows from case join
+            case_subquery = session.query(Case.property_id).filter(
+                Case.property_id == Property.id
+            )
+            if min_price:
+                case_subquery = case_subquery.filter(Case.current_price >= min_price)
+            if max_price:
+                case_subquery = case_subquery.filter(Case.current_price <= max_price)
 
-    # For price sorting, we need to join with the most recent Case for each property
-    # Use a subquery to get only the most recent case per property (by created_date)
-    if sort_by in ['price_asc', 'price_desc'] or sort_by is None or sort_by == '':
-        sort_by_price = True
-        from sqlalchemy import func as sql_func
+            query = query.filter(case_subquery.exists())
 
-        # Subquery to find the most recent case per property
-        # Using GROUP BY with MAX to get only one case per property
-        recent_case_subquery = session.query(
-            Case.property_id,
-            Case.current_price,
-            sql_func.max(Case.created_date).over(partition_by=Case.property_id).label('max_date'),
-            sql_func.row_number().over(
-                partition_by=Case.property_id,
-                order_by=Case.created_date.desc()
-            ).label('rn')
-        ).subquery()
+        if min_area:
+            query = query.filter(Property.living_area >= min_area)
+        if max_area:
+            query = query.filter(Property.living_area <= max_area)
 
-        # Filter to only the most recent case (row_number = 1)
-        recent_cases = session.query(recent_case_subquery).filter(
-            recent_case_subquery.c.rn == 1
-        ).subquery()
+        # Join with MainBuilding for rooms and year filters
+        if min_rooms or max_rooms or min_year or max_year:
+            query = query.join(Property.main_building)
 
-        # LEFT JOIN with the recent cases to preserve properties without cases
-        query = query.outerjoin(recent_cases, Property.id == recent_cases.c.property_id)
+            if min_rooms:
+                query = query.filter(MainBuilding.number_of_rooms >= min_rooms)
+            if max_rooms:
+                query = query.filter(MainBuilding.number_of_rooms <= max_rooms)
 
-        # Apply distinct again AFTER the join to eliminate duplicate rows from the join
+            if min_year:
+                query = query.filter(MainBuilding.year_built >= min_year)
+            if max_year:
+                query = query.filter(MainBuilding.year_built <= max_year)
+
+        # Apply distinct to avoid duplicate properties from filter subqueries
         query = query.distinct(Property.id)
 
-        # Sort by price with Property.id as secondary sort for deterministic ordering
-        if sort_by == 'price_asc':
-            query = query.order_by(recent_cases.c.current_price.asc(), Property.id.asc())
-        else:  # price_desc or default
-            # NULL prices go to the end
-            query = query.order_by(recent_cases.c.current_price.desc().nullslast(), Property.id.asc())
+        # For price sorting, we need to join with the most recent Case for each property
+        # Use a subquery to get only the most recent case per property (by created_date)
+        if sort_by in ['price_asc', 'price_desc', 'score_asc', 'score_desc'] or sort_by is None or sort_by == '':
+            from sqlalchemy import func as sql_func
 
-        # Get total count before pagination
-        total = query.count()
+            # Subquery to find the most recent case per property
+            # Using GROUP BY with MAX to get only one case per property
+            recent_case_subquery = session.query(
+                Case.property_id,
+                Case.current_price,
+                sql_func.max(Case.created_date).over(partition_by=Case.property_id).label('max_date'),
+                sql_func.row_number().over(
+                    partition_by=Case.property_id,
+                    order_by=Case.created_date.desc()
+                ).label('rn')
+            ).subquery()
 
-        # Apply pagination at database level
-        properties = query.offset((page - 1) * per_page).limit(per_page).all()
-    else:
-        sort_by_price = False
-        # Get total count first
-        total = query.count()
+            # Filter to only the most recent case (row_number = 1)
+            recent_cases = session.query(recent_case_subquery).filter(
+                recent_case_subquery.c.rn == 1
+            ).subquery()
 
-        # Apply sorting at database level for non-price sorts
-        if sort_by == 'size_desc':
-            query = query.order_by(Property.living_area.desc(), Property.id.asc())
-        elif sort_by == 'year_desc':
-            if 'main_building' not in [str(m) for m in query.column_descriptions]:
-                query = query.join(Property.main_building)
-            query = query.order_by(MainBuilding.year_built.desc().nullslast(), Property.id.asc())
-        elif sort_by == 'price_per_sqm_asc':
-            query = query.order_by((Property.latest_valuation / Property.living_area).asc(), Property.id.asc())
+            # LEFT JOIN with the recent cases to preserve properties without cases
+            query = query.outerjoin(recent_cases, Property.id == recent_cases.c.property_id)
 
-        # Apply pagination at database level
-        properties = query.offset((page - 1) * per_page).limit(per_page).all()
+            # Apply distinct again AFTER the join to eliminate duplicate rows from the join
+            query = query.distinct(Property.id)
 
-    # Calculate area average price per m² (only for on-market properties)
-    area_avg_price_per_sqm = {}
-    if municipality and municipality != 'all':
-        avg_query = session.query(func.avg(Property.latest_valuation / Property.living_area)).join(
-            Property.municipality_info
-        ).filter(
-            Municipality.name == municipality,
-            Property.is_on_market == True,
-            Property.latest_valuation.isnot(None),
-            Property.living_area.isnot(None),
-            Property.living_area > 0
-        ).scalar()
-        if avg_query:
-            area_avg_price_per_sqm[municipality] = round(avg_query, 2)
-    
-    # Format results
-    results = []
-    for prop in properties:
-        # Get building info
-        building = prop.main_building
-        municipality_obj = prop.municipality_info
-        municipality_name = municipality_obj.name if municipality_obj else 'N/A'
+            # Sort by price (score sorting happens in-memory after calculation)
+            if sort_by == 'price_asc':
+                query = query.order_by(recent_cases.c.current_price.asc(), Property.id.asc())
+            else:  # price_desc or default or score sorts
+                # NULL prices go to the end
+                query = query.order_by(recent_cases.c.current_price.desc().nullslast(), Property.id.asc())
 
-        # Get current listing price from most recent case
-        current_price = None
-        if prop.cases:
-            # Get the most recent case (assuming cases are ordered)
-            latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
-            current_price = latest_case.current_price
+            # Get total count before pagination
+            total = query.count()
 
-        # Calculate price per m²
-        price_per_sqm = None
-        if current_price and prop.living_area and prop.living_area > 0:
-            price_per_sqm = round(current_price / prop.living_area, 2)
+            # Apply pagination at database level
+            properties = query.offset((page - 1) * per_page).limit(per_page).all()
+        else:
+            # Get total count first
+            total = query.count()
 
-        # Get days on market
-        days_on_market_obj = prop.days_on_market_info
-        days_on_market = None
-        realtor_names = []
-        if days_on_market_obj:
-            # Calculate total days (this is simplified - actual calculation may vary)
-            if hasattr(days_on_market_obj, 'realtors') and days_on_market_obj.realtors:
+            # Apply sorting at database level for non-price sorts
+            if sort_by == 'size_desc':
+                query = query.order_by(Property.living_area.desc(), Property.id.asc())
+            elif sort_by == 'year_desc':
+                if 'main_building' not in [str(m) for m in query.column_descriptions]:
+                    query = query.join(Property.main_building)
+                query = query.order_by(MainBuilding.year_built.desc().nullslast(), Property.id.asc())
+            elif sort_by == 'price_per_sqm_asc':
+                query = query.order_by((Property.latest_valuation / Property.living_area).asc(), Property.id.asc())
+
+            # Apply pagination at database level
+            properties = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # Calculate area average price per m² (only for on-market properties)
+        area_avg_price_per_sqm = {}
+        if municipality and municipality != 'all':
+            avg_query = session.query(func.avg(Property.latest_valuation / Property.living_area)).join(
+                Property.municipality_info
+            ).filter(
+                Municipality.name == municipality,
+                Property.is_on_market == True,
+                Property.latest_valuation.isnot(None),
+                Property.living_area.isnot(None),
+                Property.living_area > 0
+            ).scalar()
+            if avg_query:
+                area_avg_price_per_sqm[municipality] = round(avg_query, 2)
+
+        # Phase 2: Initialize scoring if persona-based sorting or scoring filters are requested
+        aggregates = None
+        scorer = None
+        all_scores_for_percentile = []
+
+        if sort_by in ['score_asc', 'score_desc'] or min_score is not None or max_score is not None:
+            try:
+                # Calculate aggregates ONCE for efficiency
+                scorer = CompositeScorer(session)
+                aggregates = scorer.aggregate_calculator.calculate_all_aggregates()
+                logger.info(f"Scoring initialized with persona: {persona}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize scoring: {str(e)}")
+                scorer = None
+                aggregates = None
+
+        # Format results with optional scoring
+        results = []
+        for prop in properties:
+            # Get building info
+            building = prop.main_building
+            municipality_obj = prop.municipality_info
+            municipality_name = municipality_obj.name if municipality_obj else 'N/A'
+
+            # Get current listing price from most recent case
+            current_price = None
+            if prop.cases:
+                # Get the most recent case (assuming cases are ordered)
+                latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
+                current_price = latest_case.current_price
+
+            # Calculate price per m²
+            price_per_sqm = None
+            if current_price and prop.living_area and prop.living_area > 0:
+                price_per_sqm = round(current_price / prop.living_area, 2)
+
+            # Get days on market
+            days_on_market_obj = prop.days_on_market_info
+            days_on_market = None
+            realtor_names = []
+            if days_on_market_obj:
+                # Calculate total days (this is simplified - actual calculation may vary)
+                if hasattr(days_on_market_obj, 'realtors') and days_on_market_obj.realtors:
+                    try:
+                        realtor_list = days_on_market_obj.realtors if isinstance(days_on_market_obj.realtors, list) else []
+                        realtor_names = [r.get('name', '') for r in realtor_list if isinstance(r, dict)]
+                    except:
+                        realtor_names = []
+
+            result_item = {
+                'id': prop.id,
+                'address': f"{prop.road_name} {prop.house_number}",
+                'city': prop.city_name,
+                'zip_code': prop.zip_code,
+                'municipality': municipality_name,
+                'price': current_price,
+                'living_area': prop.living_area,
+                'price_per_sqm': price_per_sqm,
+                'area_avg_price_per_sqm': area_avg_price_per_sqm.get(municipality_name),
+                'rooms': building.number_of_rooms if building else None,
+                'year_built': building.year_built if building else None,
+                'energy_label': prop.energy_label,
+                'latitude': prop.latitude,
+                'longitude': prop.longitude,
+                'on_market': prop.is_on_market,
+                'slug': prop.slug,
+                'realtors': realtor_names,
+                'days_on_market': days_on_market
+            }
+
+            # Phase 2: Calculate scoring if needed
+            if scorer and aggregates:
                 try:
-                    realtor_list = days_on_market_obj.realtors if isinstance(days_on_market_obj.realtors, list) else []
-                    realtor_names = [r.get('name', '') for r in realtor_list if isinstance(r, dict)]
-                except:
-                    realtor_names = []
+                    # Calculate score using PersonaManager weights if persona specified
+                    score_result = scorer.calculate_property_score(prop, include_percentile=False)
 
-        results.append({
-            'id': prop.id,
-            'address': f"{prop.road_name} {prop.house_number}",
-            'city': prop.city_name,
-            'zip_code': prop.zip_code,
-            'municipality': municipality_name,
-            'price': current_price,
-            'living_area': prop.living_area,
-            'price_per_sqm': price_per_sqm,
-            'area_avg_price_per_sqm': area_avg_price_per_sqm.get(municipality_name),
-            'rooms': building.number_of_rooms if building else None,
-            'year_built': building.year_built if building else None,
-            'energy_label': prop.energy_label,
-            'latitude': prop.latitude,
-            'longitude': prop.longitude,
-            'on_market': prop.is_on_market,
-            'slug': prop.slug,
-            'realtors': realtor_names,
-            'days_on_market': days_on_market
+                    if score_result:
+                        composite_score = score_result.get('composite_score', 50.0)
+                        all_scores_for_percentile.append(composite_score)
+
+                        # Get badge information
+                        badge = ScoreInterpretation.get_badge(composite_score)
+
+                        result_item.update({
+                            'composite_score': composite_score,
+                            'score_badge': badge['badge'] if badge else None,
+                            'score_badge_label': badge['label'] if badge else 'Unknown',
+                            'score_badge_color': badge['color'] if badge else '#999999',
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to score property {prop.id}: {str(e)}")
+                    # Return neutral score on error
+                    result_item.update({
+                        'composite_score': 50.0,
+                        'score_badge': 'fair',
+                        'score_badge_label': 'Fair',
+                        'score_badge_color': '#E67E22',
+                    })
+
+            results.append(result_item)
+
+        # Phase 2: Apply score-based filtering AFTER all scores are calculated
+        if min_score is not None or max_score is not None:
+            results = [r for r in results
+                      if ((min_score is None or r.get('composite_score', 50) >= min_score) and
+                          (max_score is None or r.get('composite_score', 50) <= max_score))]
+            total = len(results)
+
+        # Phase 2: Apply score-based sorting AFTER all scores are calculated
+        if sort_by == 'score_desc' and all_scores_for_percentile:
+            # Calculate percentiles for all results
+            percentile_map = ScorePercentileCalculator.calculate_percentiles(all_scores_for_percentile)
+
+            # Add percentile to results
+            for result in results:
+                score = result.get('composite_score', 50.0)
+                percentile = percentile_map.get(score, 50.0)
+                result['percentile_rank'] = percentile
+
+            # Sort by score descending
+            results.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
+
+        elif sort_by == 'score_asc' and all_scores_for_percentile:
+            # Calculate percentiles for all results
+            percentile_map = ScorePercentileCalculator.calculate_percentiles(all_scores_for_percentile)
+
+            # Add percentile to results
+            for result in results:
+                score = result.get('composite_score', 50.0)
+                percentile = percentile_map.get(score, 50.0)
+                result['percentile_rank'] = percentile
+
+            # Sort by score ascending
+            results.sort(key=lambda x: x.get('composite_score', 0))
+
+        session.close()
+
+        return jsonify({
+            'results': results,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
         })
 
-    # No need to re-sort - database handles sorting by current_price now
-    
-    session.close()
-    
-    return jsonify({
-        'results': results,
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total + per_page - 1) // per_page
-    })
+    except Exception as e:
+        session.close()
+        logger.error(f"Search error: {str(e)}")
+        return jsonify({
+            'error': f'Search error: {str(e)}',
+            'results': [],
+            'total': 0,
+            'page': 1,
+            'per_page': per_page,
+            'total_pages': 0
+        }), 500
 
 @app.route('/api/text-search')
 def text_search():
@@ -486,6 +591,199 @@ def text_search():
             'error': f'Search error: {str(e)}'
         }), 500
 
+@app.route('/api/personas')
+def api_personas():
+    """Get list of available scoring personas"""
+    try:
+        personas_list = PersonaManager.list_personas()
+        personas_data = []
+
+        for persona_name in personas_list:
+            try:
+                weights = PersonaManager.get_persona_weights(persona_name)
+                description = PersonaManager.get_persona_description(persona_name)
+
+                personas_data.append({
+                    'id': persona_name,
+                    'name': ' '.join(word.capitalize() for word in persona_name.split('_')),
+                    'description': description,
+                    'weights': weights
+                })
+            except Exception as e:
+                logger.warning(f"Failed to load persona {persona_name}: {str(e)}")
+
+        return jsonify({
+            'success': True,
+            'personas': personas_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching personas: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error fetching personas: {str(e)}'
+        }), 500
+
+
+@app.route('/api/property/<property_id>/score')
+def api_property_score(property_id: str):
+    """Get detailed score breakdown for a specific property"""
+    session = db.get_session()
+
+    try:
+        # Get persona from query parameters
+        persona = request.args.get('persona', 'balanced')
+
+        # Fetch property
+        prop = session.query(Property).filter(Property.id == property_id).first()
+
+        if not prop:
+            return jsonify({
+                'success': False,
+                'error': 'Property not found'
+            }), 404
+
+        # Initialize scorer
+        scorer = CompositeScorer(session)
+        aggregates = scorer.aggregate_calculator.calculate_all_aggregates()
+
+        # Calculate score
+        score_result = scorer.calculate_property_score(prop, include_percentile=False)
+
+        if not score_result:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to calculate property score'
+            }), 500
+
+        composite_score = score_result.get('composite_score', 50.0)
+
+        # Get badge information
+        badge = ScoreInterpretation.get_badge(composite_score)
+
+        # Get property data for response
+        building = prop.main_building
+        municipality_obj = prop.municipality_info
+        municipality_name = municipality_obj.name if municipality_obj else 'N/A'
+
+        # Get current price
+        current_price = None
+        if prop.cases:
+            latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
+            current_price = latest_case.current_price
+
+        # Get municipality average score for comparison
+        municipal_avg_score = None
+        if municipality_obj:
+            try:
+                # Query all properties in municipality to calculate average score
+                muni_properties = session.query(Property).filter(
+                    Property.municipality_id == municipality_obj.id
+                ).limit(100).all()  # Limit for performance
+
+                if muni_properties:
+                    muni_scores = []
+                    for muni_prop in muni_properties:
+                        try:
+                            muni_score_result = scorer.calculate_property_score(
+                                muni_prop,
+                                include_percentile=False
+                            )
+                            if muni_score_result:
+                                muni_scores.append(muni_score_result.get('composite_score', 50.0))
+                        except:
+                            pass
+
+                    if muni_scores:
+                        municipal_avg_score = round(sum(muni_scores) / len(muni_scores), 1)
+            except Exception as e:
+                logger.warning(f"Failed to calculate municipal average: {str(e)}")
+
+        # Calculate percentile by comparing to other on-market properties
+        try:
+            # Query all on-market properties for percentile
+            all_on_market = session.query(Property).filter(
+                Property.is_on_market == True
+            ).limit(1000).all()  # Limit for performance
+
+            if all_on_market:
+                all_scores = []
+                for on_mkt_prop in all_on_market:
+                    try:
+                        mkt_score_result = scorer.calculate_property_score(
+                            on_mkt_prop,
+                            include_percentile=False
+                        )
+                        if mkt_score_result:
+                            all_scores.append(mkt_score_result.get('composite_score', 50.0))
+                    except:
+                        pass
+
+                if all_scores:
+                    percentile_map = ScorePercentileCalculator.calculate_percentiles(all_scores)
+                    percentile_rank = percentile_map.get(composite_score, 50.0)
+                else:
+                    percentile_rank = 50.0
+            else:
+                percentile_rank = 50.0
+        except Exception as e:
+            logger.warning(f"Failed to calculate percentile: {str(e)}")
+            percentile_rank = 50.0
+
+        # Format factor breakdown
+        factors_breakdown = {}
+        if 'factors' in score_result:
+            for factor_name, factor_data in score_result['factors'].items():
+                factors_breakdown[factor_name] = {
+                    'score': factor_data.get('score', 0),
+                    'weight': factor_data.get('weight', 0),
+                    'contribution': round(
+                        factor_data.get('score', 0) * factor_data.get('weight', 0),
+                        2
+                    ),
+                    'explanation': factor_data.get('description', '')
+                }
+
+        # Build response
+        response = {
+            'success': True,
+            'property_id': str(prop.id),
+            'address': f"{prop.road_name} {prop.house_number}",
+            'municipality': municipality_name,
+            'price': current_price,
+            'living_area': prop.living_area,
+            'composite_score': composite_score,
+            'percentile_rank': percentile_rank,
+            'badge': {
+                'label': badge['label'] if badge else 'Unknown',
+                'color': badge['color'] if badge else '#999999',
+                'badge': badge['badge'] if badge else 'unknown',
+                'emoji': badge.get('emoji', '')
+            },
+            'interpretation': ScoreInterpretation.get_interpretation(
+                composite_score,
+                percentile=percentile_rank
+            ) if hasattr(ScoreInterpretation, 'get_interpretation') else f"Score {composite_score}",
+            'factor_breakdown': factors_breakdown,
+            'comparison': {
+                'municipal_avg_score': municipal_avg_score,
+                'municipal_percentile': percentile_rank,
+                'description': f"{round(percentile_rank)}% of on-market properties score lower"
+            }
+        }
+
+        session.close()
+        return jsonify(response)
+
+    except Exception as e:
+        session.close()
+        logger.error(f"Error calculating property score: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error calculating score: {str(e)}'
+        }), 500
+
+
 @app.route('/api/property/<property_id>')
 def api_property_detail(property_id):
     """API endpoint for detailed property information"""
@@ -668,6 +966,96 @@ def property_detail(property_id):
     session.close()
     
     return jsonify(result)
+
+@app.route('/api/personas')
+def api_personas():
+    """Get list of available scoring personas"""
+    try:
+        from scoring_api import get_personas_list
+        personas = get_personas_list()
+        return jsonify({
+            'success': True,
+            'personas': personas,
+            'count': len(personas)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/property/<property_id>/score')
+def property_score(property_id: str):
+    """Get detailed score breakdown for a specific property"""
+    session = db.get_session()
+
+    try:
+        # Get persona parameter (defaults to space_conscious)
+        persona = request.args.get('persona', 'space_conscious')
+
+        # Fetch property
+        prop = session.query(Property).filter(Property.id == property_id).first()
+
+        if not prop:
+            return jsonify({
+                'success': False,
+                'error': 'Property not found'
+            }), 404
+
+        # Calculate aggregates once
+        from scoring_api import calculate_aggregates, calculate_property_score
+        aggregates = calculate_aggregates(session)
+
+        # Calculate score
+        score_result = calculate_property_score(prop, session, aggregates, persona)
+
+        if not score_result:
+            return jsonify({
+                'success': False,
+                'error': 'Could not calculate score'
+            }), 500
+
+        # Build response with property info
+        municipality = prop.municipality_info
+        building = prop.main_building
+
+        # Get current listing price
+        current_price = None
+        if prop.cases:
+            latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
+            current_price = latest_case.current_price
+
+        response = {
+            'success': True,
+            'property': {
+                'id': prop.id,
+                'address': f"{prop.road_name} {prop.house_number}".strip(),
+                'city': prop.city_name,
+                'municipality': municipality.name if municipality else None,
+                'price': current_price,
+                'living_area': prop.living_area,
+                'year_built': building.year_built if building else None,
+            },
+            'score': {
+                'composite_score': score_result.get('composite_score'),
+                'badge': score_result.get('badge'),
+                'interpretation': score_result.get('interpretation'),
+                'factor_breakdown': score_result.get('factor_breakdown'),
+            },
+            'persona': persona,
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        session.close()
+
 
 @app.route('/stats')
 def stats():

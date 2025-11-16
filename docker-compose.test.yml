@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for tests
+  housing-db-test:
+    image: postgres:15
+    container_name: housing-db-test
+    environment:
+      POSTGRES_USER: housing
+      POSTGRES_PASSWORD: housing
+      POSTGRES_DB: housing
+    ports:
+      - "5433:5432"
+    volumes:
+      - housing-test-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U housing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flask API server for testing
+  housing-api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: housing-api-test
+    environment:
+      DATABASE_URL: postgresql://housing:housing@housing-db-test:5432/housing
+      FLASK_ENV: testing
+      FLASK_DEBUG: "false"
+    ports:
+      - "5000:5000"
+    depends_on:
+      housing-db-test:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: python webapp/app.py
+
+  # Playwright test runner
+  test-runner:
+    image: mcr.microsoft.com/playwright:v1.40.0-focal
+    container_name: housing-test-runner
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://housing:housing@housing-db-test:5432/housing
+      API_BASE_URL: http://housing-api-test:5000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - housing-api-test
+    command: >
+      sh -c "
+        npm install &&
+        npx playwright install &&
+        npm test &&
+        echo 'Tests completed - results in playwright-report/'
+      "
+
+volumes:
+  housing-test-db:
+
+networks:
+  default:
+    name: housing-test-network

@@ -1,0 +1,27 @@
+{
+  "name": "danish-housing-market-search-tests",
+  "version": "1.0.0",
+  "description": "Playwright tests for the scoring system",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test tests/scoring_system.spec.ts --grep 'API Tests'",
+    "test:ui": "playwright test tests/scoring_system.spec.ts --grep 'UI Tests|Responsive|Interpretation|Performance'",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report",
+    "test:chrome": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project='Mobile Chrome'",
+    "test:all-browsers": "playwright test"
+  },
+  "keywords": ["playwright", "testing", "scoring-system"],
+  "author": "Claude Code",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+﻿from flask import Flask, render_template, request, jsonify
 from datetime import datetime
 import sys
 import logging
@@ -185,7 +185,7 @@ def search():
             # Apply pagination at database level
             properties = query.offset((page - 1) * per_page).limit(per_page).all()
 
-        # Calculate area average price per m² (only for on-market properties)
+        # Calculate area average price per mÂ² (only for on-market properties)
         area_avg_price_per_sqm = {}
         if municipality and municipality != 'all':
             avg_query = session.query(func.avg(Property.latest_valuation / Property.living_area)).join(
@@ -231,7 +231,7 @@ def search():
                 latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
                 current_price = latest_case.current_price
 
-            # Calculate price per m²
+            # Calculate price per mÂ²
             price_per_sqm = None
             if current_price and prop.living_area and prop.living_area > 0:
                 price_per_sqm = round(current_price / prop.living_area, 2)
@@ -517,7 +517,7 @@ def text_search():
             # Apply pagination at database level
             properties = query.offset((page - 1) * per_page).limit(per_page).all()
 
-        # Calculate area average price per m² for the municipality
+        # Calculate area average price per mÂ² for the municipality
         area_avg_price_per_sqm = {}
         if properties:
             municipality_names = set(p.municipality_info.name for p in properties if p.municipality_info)
@@ -545,7 +545,7 @@ def text_search():
             # Use latest_valuation as price (consistent with /api/search)
             price = prop.latest_valuation
 
-            # Calculate price per m²
+            # Calculate price per mÂ²
             price_per_sqm = None
             if price and prop.living_area and prop.living_area > 0:
                 price_per_sqm = round(price / prop.living_area, 2)
@@ -1102,4 +1102,4 @@ def stats():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)

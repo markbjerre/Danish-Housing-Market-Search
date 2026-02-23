@@ -1,5 +1,9 @@
 # Installation and Test Runner for Danish Housing Market Search Scoring System
-# Run this file from PowerShell: .\RUN_TESTS.ps1
+# Run from project root: .\scripts\RUN_TESTS.ps1
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectDir = Split-Path -Parent $ScriptDir
+Set-Location $ProjectDir
 
 Write-Host ""
 Write-Host "========================================"

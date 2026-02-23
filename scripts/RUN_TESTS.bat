@@ -1,8 +1,8 @@
 @echo off
 REM Installation and Test Runner for Danish Housing Market Search Scoring System
-REM Run this file from PowerShell: cmd /c RUN_TESTS.bat
+REM Run from project root: scripts\RUN_TESTS.bat
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo.
 echo ========================================

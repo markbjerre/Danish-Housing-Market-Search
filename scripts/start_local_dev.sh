@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Start local development environment with SSH tunnel and Flask
+# Run: ./scripts/start_local_dev.sh
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -15,8 +16,9 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Get the directory where this script is located
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get project root (parent of scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
 echo "📁 Project directory: $PROJECT_DIR"

@@ -1,5 +1,15 @@
 # Project: Danish Housing Market Search
 
+## Type
+Data platform
+
+## Entry points
+| Action | Command |
+|--------|---------|
+| **Main entry** | `webapp/app.py` (Flask, PostgreSQL) |
+| **Run locally** | `./scripts/start_local_dev.sh` (Linux/Mac) or `scripts\start_local_dev.bat` (Windows) — or `python webapp/app.py` with .env |
+| **Run tests** | `./scripts/test.sh` or `npm test` (Playwright) |
+
 ## Project Description
 Production system for analyzing the Danish housing market. Imports, stores, and analyzes villa properties from the Boligsiden API across 36 municipalities within 60km of Copenhagen. PostgreSQL database with 228K+ properties, Flask web interface, and portable file-based system for offline access.
 
@@ -20,7 +30,7 @@ Production system for analyzing the Danish housing market. Imports, stores, and 
 ```
 Danish-Housing-Market-Search/
 ├── portable/               # File-based system (no DB required)
-├── scripts/                # Import and utility scripts
+├── scripts/                # Import and utility scripts (incl. test.sh, start_local_dev)
 │   ├── import_copenhagen_area.py   # Main importer (20 parallel workers)
 │   ├── import_api_data.py          # API data fetcher
 │   ├── refresh_listings.py         # Daily/weekly refresh
@@ -29,7 +39,9 @@ Danish-Housing-Market-Search/
 │   ├── db_models_new.py    # SQLAlchemy ORM (14 tables)
 │   ├── scoring/factors.py  # Property scoring logic
 │   └── api_handler.py      # Boligsiden API client
-├── webapp/app_FIXED.py     # Main Flask app
+├── webapp/                 # Flask web application
+│   └── app.py             # Main Flask app (PostgreSQL)
+├── docs/                   # Project documentation (INDEX.md)
 ├── tests/                  # Diagnostic and discovery scripts
 ├── utils/                  # Shared utilities
 └── .env                    # DB credentials (DO NOT COMMIT)
@@ -52,7 +64,7 @@ Danish-Housing-Market-Search/
 ## Instructions for Claude
 
 ### Testing & Commits
-- Test locally before pushing; build complete features then commit (no micro-commits)
+- Test locally before pushing (scripts/start_local_dev.sh or scripts\start_local_dev.bat); build complete features then commit (no micro-commits)
 - Pragmatic testing — catch obvious issues, don't over-engineer test coverage
 
 ### Code Quality
@@ -123,7 +135,64 @@ API_RATE_LIMIT=10
 MAX_WORKERS=20
 ```
 
+<<<<<<< HEAD
 ## Database Schema (14 Tables)
 - **Core**: `properties_new`, `buildings`, `registrations`
 - **Listings**: `cases`, `case_images`, `price_changes`, `days_on_market`
 - **Geographic**: `municipalities`, `provinces`, `cities`, `zip_codes`, `roads`, `places`
+=======
+### Environment Variables (.env)
+```
+DATABASE_URL=postgresql://postgres:password@localhost:5432/housing_db
+FLASK_ENV=development
+FLASK_DEBUG=True
+API_BASE_URL=https://www.boligsiden.dk
+API_RATE_LIMIT=10  # requests per second
+MAX_WORKERS=20     # parallel import workers
+```
+
+## Architecture
+
+### Data Pipeline
+```
+Boligsiden API (228K+ properties)
+         ↓
+Import Scripts (20 parallel workers)
+         ↓
+PostgreSQL Database (14 tables, 2.6M rows)
+    ↙                                    ↘
+Daily Refresh         Weekly Refresh     ↓ Weekly Backup
+(Active listings)     (Full rescan)   Parquet Export (87.6 MB)
+    ↓                     ↓                  ↓
+   ~45 min            ~2-3 hours      Portable System
+                                      (No DB needed)
+         ↓                              ↙
+    PostgreSQL ←————→ Flask Web App ←——┘
+                   
+         ↓
+    User Browser
+    • Local Dev: http://127.0.0.1:5000
+    • Production: https://ai-vaerksted.cloud/housing
+```
+```
+
+### Database Schema (14 Tables)
+- **Core Property Data**: properties_new, buildings, registrations
+- **Listing & Market**: cases, case_images, price_changes, days_on_market
+- **Geographic**: municipalities, provinces, cities, zip_codes, roads, places
+
+### Web Application Components
+- **Search Interface**: Filter by municipality, price, size, rooms, year, status
+- **Results Page**: Sortable list with pagination (50 per page)
+- **Property Details**: Full property information with images
+- **Data Info**: Database statistics and export information
+
+## Documentation
+See [docs/INDEX.md](docs/INDEX.md). Do not create new docs without updating INDEX.
+
+## Related Documentation
+- **Database Schema Details**: See `docs/DATABASE_SCHEMA.md` for complete 14-table structure and field definitions
+- **Project Summary**: See `docs/PROJECT_SUMMARY.md` for high-level technical overview  
+- **Update Strategy**: See `docs/UPDATE_SCHEDULE.md` for refresh timing and data freshness details
+- **File Organization**: See `docs/PROJECT_STRUCTURE.md` for folder structure explanation
+>>>>>>> d826179 (Agent optimizations: entry points in CLAUDE.md, scripts/test.sh, docs restructure)

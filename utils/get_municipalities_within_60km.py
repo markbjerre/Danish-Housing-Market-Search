@@ -53,7 +53,6 @@ def get_municipalities_from_api():
         try:
             params = {
                 'sold': 'false',
-                'per_page': '20',
                 'page': str(page),
                 'sortBy': 'address',
                 'sortAscending': 'true'

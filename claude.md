@@ -1,128 +1,97 @@
 # Project: Danish Housing Market Search
 
 ## Project Description
-A sophisticated, production-ready system for analyzing the Danish housing market. Imports, stores, and analyzes villa properties from the Boligsiden API across 36 municipalities within 60km of Copenhagen. Features include a PostgreSQL database with 228,594 properties, a Flask web interface for searching and filtering, and a portable file-based system for offline access on any computer.
+Production system for analyzing the Danish housing market. Imports, stores, and analyzes villa properties from the Boligsiden API across 36 municipalities within 60km of Copenhagen. PostgreSQL database with 228K+ properties, Flask web interface, and portable file-based system for offline access.
 
 ## Tech Stack
-- **Frontend**: Flask with Jinja2 templates, HTML/CSS, Bootstrap
-- **Backend**: Python 3.x, Flask web framework
-- **Database**: PostgreSQL (primary production) + Parquet files (portable backup)
-- **Data Processing**: Pandas, NumPy for data manipulation and analysis
-- **API Integration**: Boligsiden API (villa property data)
-- **Data Formats**: Parquet (columnar compression), CSV exports
-- **Testing**: pytest (recommended for future unit tests)
+- **Frontend**: Flask + Jinja2 templates, Bootstrap
+- **Backend**: Python 3.x, Flask
+- **Database**: PostgreSQL (primary) + Parquet files (portable backup)
+- **Data Processing**: Pandas, NumPy
+- **API**: Boligsiden API (villa property data)
 
 ## Code Conventions
-- 4-space indentation (Python PEP 8 standard)
-- `snake_case` for variables, functions, and file names
-- `UPPER_SNAKE_CASE` for constants
-- `CapitalCase` for class names
-- Type hints for all function signatures
-- Google-style docstrings for all public functions
-- Comments explaining complex logic and API quirks
-- Error handling with try/except for API calls and database operations
+- PEP 8, type hints on all function signatures, Google-style docstrings on public functions
+- `snake_case` variables/files, `UPPER_SNAKE_CASE` constants, `CapitalCase` classes
+- Vectorized Pandas over Python loops; SQL joins over N+1 queries
+- Archive unused files to `archive/`; keep docs to README.md, TODO.md, claude.md only
 
 ## Project Structure
 ```
 Danish-Housing-Market-Search/
-├── portable/                          # Complete no-database system
-│   ├── app_portable.py               # File-based Flask application
-│   ├── file_database.py              # Pandas database replacement layer
-│   ├── requirements_portable.txt     # Minimal dependencies
-│   ├── data/                         # Parquet backups (87.6 MB)
-│   └── templates/                    # Jinja2 HTML templates
-├── scripts/                          # All utility and import scripts
-│   ├── import_copenhagen_area.py     # Main data importer (20 parallel workers)
-│   ├── import_api_data.py            # Direct API data fetcher
-│   ├── backup_database.py            # Full export to Parquet format
-│   └── periodic_updates.py           # Daily/weekly refresh logic
-├── src/                              # Core source code
-│   ├── database.py                   # PostgreSQL connection & session mgmt
-│   ├── db_models_new.py              # SQLAlchemy ORM models (14 tables)
-│   ├── file_database.py              # Pandas-based query replacement
-│   ├── api_handler.py                # Boligsiden API client wrapper
-│   └── config.py                     # Configuration & environment loading
-├── webapp/                           # Flask web application
-│   ├── app.py                        # Main Flask app (PostgreSQL version)
-│   ├── app_portable.py               # Portable Flask app (file-based)
-│   └── templates/                    # Jinja2 HTML templates
-├── docs/                             # Complete project documentation
-│   ├── DATABASE_SCHEMA.md            # 14-table schema with field definitions
-│   ├── PROJECT_SUMMARY.md            # High-level project overview
-│   ├── UPDATE_SCHEDULE.md            # Data refresh strategy and timing
-│   └── PROJECT_STRUCTURE.md          # File organization and conventions
-├── data/                             # Data files and backups
-│   └── backups/                      # Timestamped Parquet exports
-├── archive/                          # Old/unused files (70+ historical files)
-├── .env                              # Database credentials (DO NOT COMMIT)
-├── .gitignore                        # Comprehensive ignore rules (280+ lines)
-├── requirements.txt                  # Full dependency list
-├── requirements_portable.txt         # Minimal portable dependencies
-├── README.md                         # Project overview and quick start
-└── claude.md                         # This file - project context for Claude
+├── portable/               # File-based system (no DB required)
+├── scripts/                # Import and utility scripts
+│   ├── import_copenhagen_area.py   # Main importer (20 parallel workers)
+│   ├── import_api_data.py          # API data fetcher
+│   ├── refresh_listings.py         # Daily/weekly refresh
+│   └── backup_database.py          # Export to Parquet
+├── src/                    # Core source
+│   ├── db_models_new.py    # SQLAlchemy ORM (14 tables)
+│   ├── scoring/factors.py  # Property scoring logic
+│   └── api_handler.py      # Boligsiden API client
+├── webapp/app_FIXED.py     # Main Flask app
+├── tests/                  # Diagnostic and discovery scripts
+├── utils/                  # Shared utilities
+└── .env                    # DB credentials (DO NOT COMMIT)
 ```
 
-## Important Notes
+## Critical API Learnings
+- Use `priceCash` not `price`; `zipCodes` (plural) not `zipCode`
+- 10K pagination limit — large municipalities need zip code subdivision
+- Rate limit: stay under 10 req/s
+- `cases[]` only appear when `isOnMarket=true`
+- Search endpoint (`/search/addresses`) returns full payload incl. `cases` — **no separate detail call needed for active listings**
+- `isOnMarket=true` search param is **ignored by API** — always returns all villas
 
-### Critical API Learnings
-- **Field names matter**: Use `priceCash` NOT `price`, `zipCodes` (plural) NOT `zipCode`
-- **10K pagination limit**: Large municipalities require zip code-based subdivision strategy
-- **Rate limiting**: Stay under 10 requests/second to avoid API bans
-- **Nested structures**: Image objects are `{width: 600, height: 400}` not plain strings
-- **Store URLs not files**: Boligsiden CDN is reliable; saves 180GB+ of storage vs local files
-
-### Database Architecture
-- **14 normalized tables** for flexibility and complex querying
-- **228,594 total properties** (villas only)
-- **3,623 active listings** with complete price and image data
-- **35,402 image URLs** stored as CDN references
-- **388,113 historical transactions** in registrations table
-- **Parquet backups**: ~87.6 MB compressed vs several GB uncompressed PostgreSQL
-
-### Performance Characteristics
-- **Import speed**: 20-30 properties/second with 20 parallel workers
-- **Full import time**: 2-3 hours for all municipalities
-- **Daily refresh**: 30-45 minutes for active listings only
-- **Weekly refresh**: 2-3 hours for complete database rescan
-- **Portable app**: Data loads in memory in seconds, queries are instant
-
-### Data Update Strategy
-- **Daily**: Refresh active listings only (30-45 minutes)
-- **Weekly**: Full database refresh scanning all municipalities (2-3 hours)
-- **Monthly**: Database cleanup, optimization, and statistics update
-- **Backup**: Weekly automatic Parquet exports for disaster recovery and portability
+## Database State (Feb 2026)
+- 228K+ total properties (villas only), 1,932 active listings
+- 14 normalized tables, 388K+ historical transactions
+- Parquet backups: ~87.6 MB compressed
+- PostgreSQL: Docker on Seagate 8TB, port **5434**, user `housing`, db `housing_db`
 
 ## Instructions for Claude
 
-When working on this project, please:
-
 ### Testing & Commits
-- **Test locally first**: Test changes locally using start_local_dev.sh/bat before pushing to VPS. This saves time and prevents wasting effort on deployment issues.
-- **Build, then commit**: Focus on building complete features/fixes locally first, then commit to git when feature is ready. No need for frequent micro-commits.
-- **Pragmatic testing**: Test locally to catch obvious issues and ensure core functionality works. Don't need to be extremely strict - just avoid pushing broken code to production.
+- Test locally before pushing; build complete features then commit (no micro-commits)
+- Pragmatic testing — catch obvious issues, don't over-engineer test coverage
 
 ### Code Quality
-- **Challenge assumptions**: Question if the user's approach might have issues or if there's better logic available
-- **Ask for clarity**: Request elaboration when instructions are vague or where context could provide significant additional value
-- **Strive for simplicity**: Prefer simple solutions over complex ones; prevent unnecessary file proliferation
-- **Archive aggressively**: Move unused files to `archive/`, delete empty folders, consolidate test scripts
-- **Minimize documentation**: Keep docs in `README.md`, `TODO.md`, and `claude.md` only; use folder-specific `claude.md` only for complex directories
-- **Type everything**: Always include Python type hints for all function parameters and return values
-- **Optimize performance**: Prioritize performance improvements, especially for operations on 200K+ property datasets
-- **Follow existing patterns**: Use established error handling, database query patterns, and API integration approaches
-- **Document public functions**: Include comprehensive docstrings for all public functions and classes
-- **Pandas over raw Python**: Use vectorized operations for data manipulation when possible (avoid loops)
-- **SQL efficiency**: Optimize database queries; avoid N+1 problems; use proper joins and indexing
-- **Production mindset**: Treat this as production code; consider edge cases, error handling, and data integrity
+- Challenge assumptions; ask for clarity on vague instructions
+- Simple over complex; archive aggressively; minimize file proliferation
+- Production mindset: edge cases, error handling, data integrity
 
-## Known Issues
-- None currently - system is production-ready and stable
+## Missing Data (Fields Available in API but Not Stored)
+
+### Added Feb 2026:
+- ✅ `cases[].realEstate`: `downPayment`, `grossMortgage`, `netMortgage` → `down_payment`, `gross_mortgage`, `net_mortgage`
+- ✅ `cases[].daysListed.days` → `days_listed`
+- ❌ `cases[].realtor` — excluded (not needed)
+
+### Medium value (not yet added):
+- `cases[].numberOfRooms/Bathrooms/Floors/Toilets` (more reliable than building-level data)
+- `casePrice` at top-level property (avoids join for current asking price)
+- `property.hasMultipleCases` (boolean)
+
+## Refresh Script (`scripts/refresh_listings.py`)
+
+Two-phase refresh:
+- **Phase 1** (`--skip-discovery`): Detail API for all `is_on_market=True` → updates data, marks sold. Fast (~2 min).
+- **Phase 2** (default): Also pages search API per municipality to find NEW listings. Slow (~1-2 hrs).
+
+```bash
+python3 scripts/refresh_listings.py --skip-discovery    # Daily (fast)
+python3 scripts/refresh_listings.py                     # Weekly (full)
+python3 scripts/refresh_listings.py --municipality Holbæk
+python3 scripts/refresh_listings.py --dry-run --municipality Gentofte
+```
+
+**Key lessons:**
+- `ALL_MUNICIPALITIES` list must stay in sync with DB — missing ones accumulate stale listings silently
+- Average days-on-market is 160–320 days — most Oct 2025 listings are genuinely still active
+- Properties can be sold+relisted with new `case_id` — refresh correctly adds new case alongside old
 
 ## Future Plans
-- ✅ Database backup system complete
-- ✅ Portable file-based system complete  
-- ✅ Project folder reorganization complete
-- 🔄 **Next Priority**: Implement automated daily/weekly refresh via Windows Task Scheduler
+- 🔄 Automated daily/weekly refresh scheduler (cron jobs)
 - 🔄 Advanced filtering and search UI improvements
 - 🔄 Property detail pages with full image galleries
 - 🔄 Market analytics dashboard for price trends
@@ -131,92 +100,30 @@ When working on this project, please:
 
 ## Environment Setup
 
-### Local Development (with PostgreSQL)
 ```bash
-# Navigate to project directory
-cd "Danish Housing Market Search"
+# Start PostgreSQL (Docker, Seagate 8TB)
+cd ~/homelab/apps/housing-db && docker compose up -d
+# DB at localhost:5434
 
-# Create and activate virtual environment
-python -m venv venv
-.\venv\Scripts\activate          # Windows
-source venv/bin/activate          # Mac/Linux
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file with database credentials
-# DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/housing_db
-
-# Ensure PostgreSQL is running on localhost:5432
-
-# Start the web application
-python webapp/app.py
-# Local: http://127.0.0.1:5000
-# Production: https://ai-vaerksted.cloud/housing
+# Run web app
+cd ~/projects/Danish-Housing-Market-Search
+python webapp/app_FIXED.py
+# http://127.0.0.1:5000  |  https://ai-vaerksted.cloud/housing
 ```
 
-### Portable System (No Database Required)
-```bash
-# Navigate to portable directory
-cd portable
-
-# Install minimal dependencies
-pip install -r requirements_portable.txt
-
-# Run the portable app
-python app_portable.py
-# Local: http://127.0.0.1:5000
-# Production: https://ai-vaerksted.cloud/housing
+**.env variables:**
+```
+DB_HOST=localhost
+DB_PORT=5434
+DB_NAME=housing_db
+DB_USER=housing
+DATABASE_URL=postgresql://housing:changeme@localhost:5434/housing_db
+API_BASE_URL=https://api.boligsiden.dk
+API_RATE_LIMIT=10
+MAX_WORKERS=20
 ```
 
-### Environment Variables (.env)
-```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/housing_db
-FLASK_ENV=development
-FLASK_DEBUG=True
-API_BASE_URL=https://www.boligsiden.dk
-API_RATE_LIMIT=10  # requests per second
-MAX_WORKERS=20     # parallel import workers
-```
-
-## Architecture
-
-### Data Pipeline
-```
-Boligsiden API (228K+ properties)
-         ↓
-Import Scripts (20 parallel workers)
-         ↓
-PostgreSQL Database (14 tables, 2.6M rows)
-    ↙                                    ↘
-Daily Refresh         Weekly Refresh     ↓ Weekly Backup
-(Active listings)     (Full rescan)   Parquet Export (87.6 MB)
-    ↓                     ↓                  ↓
-   ~45 min            ~2-3 hours      Portable System
-                                      (No DB needed)
-         ↓                              ↙
-    PostgreSQL ←————→ Flask Web App ←——┘
-                   
-         ↓
-    User Browser
-    • Local Dev: http://127.0.0.1:5000
-    • Production: https://ai-vaerksted.cloud/housing
-```
-```
-
-### Database Schema (14 Tables)
-- **Core Property Data**: properties_new, buildings, registrations
-- **Listing & Market**: cases, case_images, price_changes, days_on_market
-- **Geographic**: municipalities, provinces, cities, zip_codes, roads, places
-
-### Web Application Components
-- **Search Interface**: Filter by municipality, price, size, rooms, year, status
-- **Results Page**: Sortable list with pagination (50 per page)
-- **Property Details**: Full property information with images
-- **Data Info**: Database statistics and export information
-
-## Related Documentation
-- **Database Schema Details**: See `docs/DATABASE_SCHEMA.md` for complete 14-table structure and field definitions
-- **Project Summary**: See `docs/PROJECT_SUMMARY.md` for high-level technical overview  
-- **Update Strategy**: See `docs/UPDATE_SCHEDULE.md` for refresh timing and data freshness details
-- **File Organization**: See `docs/PROJECT_STRUCTURE.md` for folder structure explanation
+## Database Schema (14 Tables)
+- **Core**: `properties_new`, `buildings`, `registrations`
+- **Listings**: `cases`, `case_images`, `price_changes`, `days_on_market`
+- **Geographic**: `municipalities`, `provinces`, `cities`, `zip_codes`, `roads`, `places`

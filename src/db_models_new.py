@@ -333,10 +333,12 @@ class Case(Base):
     
     # Pricing
     current_price = Column(Float)
-    original_price = Column(Float)
     price_change_percentage = Column(Float)  # NEW: Percentage change from original price
     per_area_price = Column(Float)  # NEW: Price per square meter
     monthly_expense = Column(Float)  # NEW: Monthly ownership costs
+    down_payment = Column(Float)  # cases[].realEstate.downPayment
+    gross_mortgage = Column(Float)  # cases[].realEstate.grossMortgage
+    net_mortgage = Column(Float)  # cases[].realEstate.netMortgage
     
     # Dates
     created_date = Column(DateTime)  # When listing was created (offered for sale)
@@ -346,6 +348,7 @@ class Case(Base):
     # Market tracking
     days_on_market_current = Column(Integer)
     days_on_market_total = Column(Integer)
+    days_listed = Column(Integer)  # Days since current listing started (cases[].daysListed.days)
     
     # Property characteristics (from case data)
     lot_area = Column(Float)  # NEW: Lot/land area in sqm

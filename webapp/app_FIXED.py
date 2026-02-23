@@ -428,7 +428,6 @@ def property_detail(property_id):
 
         # Current listing info
         'current_price': latest_case.current_price if latest_case else None,
-        'original_price': latest_case.original_price if latest_case else None,
         'days_on_market': latest_case.days_on_market_current if latest_case else None,
         'listing_description': latest_case.description_body if latest_case else None,
 

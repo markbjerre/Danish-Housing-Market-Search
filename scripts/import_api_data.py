@@ -338,37 +338,31 @@ def import_cases(property_id, cases_data):
     
     cases = []
     for case_data in cases_data:
-        # Parse dates
-        created = case_data.get('created')
-        modified = case_data.get('modified')
-        sold = case_data.get('sold')
-        
-        if created:
-            created = datetime.fromisoformat(created.replace('Z', '+00:00'))
-        if modified:
-            modified = datetime.fromisoformat(modified.replace('Z', '+00:00'))
-        if sold:
-            sold = datetime.fromisoformat(sold.replace('Z', '+00:00'))
-        
+        # NOTE: API does not return created/modified/sold date fields.
+        # created_date, modified_date, sold_date columns will always be NULL.
+
         # Get time on market
         time_on_market = case_data.get('timeOnMarket', {})
         current_tom = time_on_market.get('current', {})
         total_tom = time_on_market.get('total', {})
-        
+
+        # Get realEstate mortgage data
+        real_estate = case_data.get('realEstate', {})
+
         case = Case(
             property_id=property_id,
             case_id=case_data.get('caseID'),
             status=case_data.get('status'),
-            current_price=case_data.get('priceCash'),  # FIXED: API uses 'priceCash' not 'price'
-            original_price=case_data.get('originalPrice'),
+            current_price=case_data.get('priceCash'),
             price_change_percentage=case_data.get('priceChangePercentage'),
             per_area_price=case_data.get('perAreaPrice'),
             monthly_expense=case_data.get('monthlyExpense'),
-            created_date=created,
-            modified_date=modified,
-            sold_date=sold,
+            down_payment=real_estate.get('downPayment'),
+            gross_mortgage=real_estate.get('grossMortgage'),
+            net_mortgage=real_estate.get('netMortgage'),
             days_on_market_current=current_tom.get('days'),
             days_on_market_total=total_tom.get('days'),
+            days_listed=case_data.get('daysListed', {}).get('days'),
             lot_area=case_data.get('lotArea'),
             basement_area=case_data.get('basementArea'),
             year_built=case_data.get('yearBuilt'),

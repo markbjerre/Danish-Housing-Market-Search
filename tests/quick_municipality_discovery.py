@@ -57,7 +57,6 @@ def discover_municipality_names(max_pages_per_strategy: int = 50):
             try:
                 params = {
                     'sold': 'false',
-                    'per_page': '20',
                     'page': str(page),
                     **strategy
                 }

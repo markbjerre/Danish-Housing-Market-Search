@@ -120,7 +120,6 @@ def test_single_property():
         print(f"  Case ID: {case.case_id}")
         print(f"  Status: {case.status}")
         print(f"  Current Price: {case.current_price:,.0f} kr" if case.current_price else "  Current Price: None ❌")
-        print(f"  Original Price: {case.original_price:,.0f} kr" if case.original_price else "  Original Price: None")
         print()
         
         # NEW fields - Pricing

@@ -8,7 +8,6 @@ Author: Claude Code
 Created: November 14, 2025
 """
 
-import math
 from typing import Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -58,7 +57,7 @@ class PricePerSqmFactor:
 
         most_recent_case = max(
             property_obj.cases,
-            key=lambda c: c.created_date if c.created_date else datetime.min
+            key=lambda c: c.imported_at if c.imported_at else 0
         )
 
         if (not most_recent_case.current_price or
@@ -100,33 +99,21 @@ class PricePerSqmFactor:
 
 class SizeOptimalityFactor:
     """
-    Factor 2: Size Optimality (12% weight)
+    Factor 2: Size (12% weight)
 
-    Gaussian distribution centered at 100 sqm.
-    Uses formula: 100 * exp(-(size-100)^2 / 400)
-
-    - 100 sqm = 100 pts
-    - Tapers to extremes (very small/large = lower score)
+    Linear scale: more sqm = higher score.
+    - MIN_SIZE (50 sqm) = 0 pts
+    - MAX_SIZE (250 sqm) = 100 pts
+    - Linear interpolation between, capped at both ends
     - Returns 50 (neutral) if living_area is NULL
     """
 
     WEIGHT: float = 0.12
-    OPTIMAL_SIZE: float = 100.0  # sqm
-    GAUSSIAN_SIGMA_SQ: float = 400.0  # Controls curve width
+    MIN_SIZE: float = 50.0   # sqm → 0 pts
+    MAX_SIZE: float = 250.0  # sqm → 100 pts
 
     @staticmethod
     def calculate(property_obj: Any, aggregates: PropertyAggregate) -> Score:
-        """
-        Calculate size optimality factor using Gaussian curve.
-
-        Args:
-            property_obj: Property ORM object
-            aggregates: Not used for this factor
-
-        Returns:
-            Score 0-100, or 50 if data missing
-        """
-        # Handle NULL values
         if (not hasattr(property_obj, 'living_area') or
             property_obj.living_area is None or
             property_obj.living_area <= 0):
@@ -134,11 +121,13 @@ class SizeOptimalityFactor:
 
         size = property_obj.living_area
 
-        # Gaussian formula: 100 * exp(-(x-100)^2 / 400)
-        exponent = -((size - SizeOptimalityFactor.OPTIMAL_SIZE) ** 2) / \
-                   SizeOptimalityFactor.GAUSSIAN_SIGMA_SQ
-        score = 100.0 * math.exp(exponent)
+        if size <= SizeOptimalityFactor.MIN_SIZE:
+            return 0.0
+        if size >= SizeOptimalityFactor.MAX_SIZE:
+            return 100.0
 
+        score = ((size - SizeOptimalityFactor.MIN_SIZE) /
+                 (SizeOptimalityFactor.MAX_SIZE - SizeOptimalityFactor.MIN_SIZE)) * 100.0
         return max(0.0, min(100.0, score))
 
 
@@ -304,7 +293,7 @@ class MarketVelocityFactor:
         # Get most recent case
         most_recent_case = max(
             property_obj.cases,
-            key=lambda c: c.created_date if c.created_date else datetime.min
+            key=lambda c: c.imported_at if c.imported_at else 0
         )
 
         if (not hasattr(most_recent_case, 'days_on_market_current') or

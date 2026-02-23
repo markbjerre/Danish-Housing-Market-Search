@@ -90,7 +90,6 @@ def fetch_property_ids_random(total_samples: int = 10000) -> List[Tuple[str, str
             try:
                 params = {
                     'sold': 'false',
-                    'per_page': '20',
                     'page': str(page),
                     **strategy
                 }

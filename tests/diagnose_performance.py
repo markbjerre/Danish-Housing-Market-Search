@@ -20,7 +20,6 @@ print("-"*80)
 params = {
     'municipalities': 'København',
     'addressTypes': 'villa',
-    'per_page': '50',
     'page': '1'
 }
 

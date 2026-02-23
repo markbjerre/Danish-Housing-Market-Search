@@ -98,10 +98,10 @@ def load_municipalities_within_60km():
     return municipalities
 
 
-def fetch_properties_from_search(municipalities: list, per_page: int = 50, max_pages: int = None):
+def fetch_properties_from_search(municipalities: list, max_pages: int = None):
     """
     Fetch all property IDs from search API for given municipalities.
-    API returns up to 50 results per page.
+    API returns up to 50 results per page (per_page param is ignored by API).
     """
     print(f"🔍 Searching for properties in {len(municipalities)} municipalities...")
     print(f"   Municipalities: {', '.join(municipalities[:5])}{'...' if len(municipalities) > 5 else ''}")
@@ -122,7 +122,6 @@ def fetch_properties_from_search(municipalities: list, per_page: int = 50, max_p
             try:
                 params = {
                     'sold': 'false',  # Currently on market
-                    'per_page': str(per_page),
                     'page': str(page)
                 }
                 
@@ -194,10 +193,9 @@ def fetch_zip_codes_for_municipality(municipality: str):
         params = {
             'municipalities': municipality,
             'addressTypes': 'villa',
-            'per_page': '50',
             'page': '1'
         }
-        
+
         # Fetch first few pages to discover zip codes
         for page in range(1, 21):  # First 1000 results (20 pages × 50)
             params['page'] = str(page)
@@ -263,7 +261,6 @@ def fetch_properties_by_municipality(municipalities: list, max_properties: int =
         params = {
             'municipalities': municipality,
             'addressTypes': 'villa',
-            'per_page': '50',
             'page': '1'
         }
         
@@ -335,7 +332,6 @@ def fetch_properties_by_filters(municipality: str, zip_code: int = None):
             params = {
                 'municipalities': municipality,
                 'addressTypes': 'villa',
-                'per_page': str(per_page),
                 'page': str(page),
                 'sortBy': 'address',
                 'sortAscending': 'true'

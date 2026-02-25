@@ -119,7 +119,7 @@ cd ~/homelab/apps/housing-db && docker compose up -d
 
 # Run web app
 cd ~/projects/Danish-Housing-Market-Search
-python webapp/app_FIXED.py
+python webapp/app.py
 # http://127.0.0.1:5000  |  https://ai-vaerksted.cloud/housing
 ```
 
@@ -135,21 +135,10 @@ API_RATE_LIMIT=10
 MAX_WORKERS=20
 ```
 
-<<<<<<< HEAD
 ## Database Schema (14 Tables)
-- **Core**: `properties_new`, `buildings`, `registrations`
-- **Listings**: `cases`, `case_images`, `price_changes`, `days_on_market`
-- **Geographic**: `municipalities`, `provinces`, `cities`, `zip_codes`, `roads`, `places`
-=======
-### Environment Variables (.env)
-```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/housing_db
-FLASK_ENV=development
-FLASK_DEBUG=True
-API_BASE_URL=https://www.boligsiden.dk
-API_RATE_LIMIT=10  # requests per second
-MAX_WORKERS=20     # parallel import workers
-```
+- **Core**: properties_new, main_buildings, registrations
+- **Listings**: cases, case_images, price_changes, days_on_market
+- **Geographic**: municipalities, provinces, cities, zip_codes, roads, places
 
 ## Architecture
 
@@ -159,7 +148,7 @@ Boligsiden API (228K+ properties)
          ↓
 Import Scripts (20 parallel workers)
          ↓
-PostgreSQL Database (14 tables, 2.6M rows)
+PostgreSQL Database (14 tables, 388K+ registrations)
     ↙                                    ↘
 Daily Refresh         Weekly Refresh     ↓ Weekly Backup
 (Active listings)     (Full rescan)   Parquet Export (87.6 MB)
@@ -168,31 +157,24 @@ Daily Refresh         Weekly Refresh     ↓ Weekly Backup
                                       (No DB needed)
          ↓                              ↙
     PostgreSQL ←————→ Flask Web App ←——┘
-                   
          ↓
     User Browser
     • Local Dev: http://127.0.0.1:5000
     • Production: https://ai-vaerksted.cloud/housing
 ```
-```
-
-### Database Schema (14 Tables)
-- **Core Property Data**: properties_new, buildings, registrations
-- **Listing & Market**: cases, case_images, price_changes, days_on_market
-- **Geographic**: municipalities, provinces, cities, zip_codes, roads, places
 
 ### Web Application Components
 - **Search Interface**: Filter by municipality, price, size, rooms, year, status
 - **Results Page**: Sortable list with pagination (50 per page)
 - **Property Details**: Full property information with images
-- **Data Info**: Database statistics and export information
+- **Statistics**: Market analytics dashboard (see docs/STATISTICS_PLAN.md)
 
 ## Documentation
 See [docs/INDEX.md](docs/INDEX.md). Do not create new docs without updating INDEX.
 
 ## Related Documentation
 - **Database Schema Details**: See `docs/DATABASE_SCHEMA.md` for complete 14-table structure and field definitions
-- **Project Summary**: See `docs/PROJECT_SUMMARY.md` for high-level technical overview  
+- **Project Summary**: See `docs/PROJECT_SUMMARY.md` for high-level technical overview
 - **Update Strategy**: See `docs/UPDATE_SCHEDULE.md` for refresh timing and data freshness details
 - **File Organization**: See `docs/PROJECT_STRUCTURE.md` for folder structure explanation
->>>>>>> d826179 (Agent optimizations: entry points in CLAUDE.md, scripts/test.sh, docs restructure)
+- **Statistics Plan**: See `docs/STATISTICS_PLAN.md` for housing market statistics feature

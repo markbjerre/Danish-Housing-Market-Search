@@ -1,11 +1,32 @@
-﻿from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 from datetime import datetime
 import sys
 import logging
+
 sys.path.append('..')
 from src.database import db
 from src.db_models_new import Property, MainBuilding, Municipality, Registration, Province, Case
 from sqlalchemy import func, or_, and_, String, distinct
+try:
+    from .statistics_queries import (
+        get_data_as_of,
+        get_row_counts,
+        get_market_overview,
+        get_price_trends,
+        get_sales_volume,
+        get_kommune_summary,
+        get_weekly_summary,
+    )
+except ImportError:
+    from statistics_queries import (
+        get_data_as_of,
+        get_row_counts,
+        get_market_overview,
+        get_price_trends,
+        get_sales_volume,
+        get_kommune_summary,
+        get_weekly_summary,
+    )
 from src.scoring import (
     CompositeScorer,
     PersonaManager,
@@ -967,95 +988,191 @@ def property_detail(property_id):
     
     return jsonify(result)
 
-@app.route('/api/personas')
-def api_personas():
-    """Get list of available scoring personas"""
+
+# ---------------------------------------------------------------------------
+# Statistics (housing market analytics)
+# ---------------------------------------------------------------------------
+
+def _statistics_db_error(e: Exception):
+    """Return 503 when DB unavailable."""
+    return jsonify({'ok': False, 'error': 'Database unavailable', 'detail': str(e)}), 503
+
+
+@app.route('/statistics')
+def statistics_page():
+    """Statistics dashboard page."""
     try:
-        from scoring_api import get_personas_list
-        personas = get_personas_list()
-        return jsonify({
-            'success': True,
-            'personas': personas,
-            'count': len(personas)
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@app.route('/api/property/<property_id>/score')
-def property_score(property_id: str):
-    """Get detailed score breakdown for a specific property"""
-    session = db.get_session()
-
-    try:
-        # Get persona parameter (defaults to space_conscious)
-        persona = request.args.get('persona', 'space_conscious')
-
-        # Fetch property
-        prop = session.query(Property).filter(Property.id == property_id).first()
-
-        if not prop:
-            return jsonify({
-                'success': False,
-                'error': 'Property not found'
-            }), 404
-
-        # Calculate aggregates once
-        from scoring_api import calculate_aggregates, calculate_property_score
-        aggregates = calculate_aggregates(session)
-
-        # Calculate score
-        score_result = calculate_property_score(prop, session, aggregates, persona)
-
-        if not score_result:
-            return jsonify({
-                'success': False,
-                'error': 'Could not calculate score'
-            }), 500
-
-        # Build response with property info
-        municipality = prop.municipality_info
-        building = prop.main_building
-
-        # Get current listing price
-        current_price = None
-        if prop.cases:
-            latest_case = sorted(prop.cases, key=lambda c: c.created_date or datetime.min, reverse=True)[0]
-            current_price = latest_case.current_price
-
-        response = {
-            'success': True,
-            'property': {
-                'id': prop.id,
-                'address': f"{prop.road_name} {prop.house_number}".strip(),
-                'city': prop.city_name,
-                'municipality': municipality.name if municipality else None,
-                'price': current_price,
-                'living_area': prop.living_area,
-                'year_built': building.year_built if building else None,
-            },
-            'score': {
-                'composite_score': score_result.get('composite_score'),
-                'badge': score_result.get('badge'),
-                'interpretation': score_result.get('interpretation'),
-                'factor_breakdown': score_result.get('factor_breakdown'),
-            },
-            'persona': persona,
-        }
-
-        return jsonify(response)
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-    finally:
+        session = db.get_session()
+        municipalities = session.query(Municipality.name).distinct().order_by(Municipality.name).all()
+        municipalities = [m[0] for m in municipalities]
         session.close()
+        return render_template('statistics.html', municipalities=municipalities)
+    except Exception:
+        return render_template('statistics.html', municipalities=[], db_error='Database connection failed.'), 503
 
+
+@app.route('/api/statistics/health')
+def api_statistics_health():
+    """Health check for statistics API. Returns ok, data_as_of, row_counts."""
+    session = None
+    try:
+        session = db.get_session()
+        data_as_of = get_data_as_of(session)
+        counts = get_row_counts(session)
+        return jsonify({
+            'ok': True,
+            'data_as_of': data_as_of.isoformat() if data_as_of else None,
+            'row_counts': counts,
+            'schema_version': 1,
+        })
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Database unavailable', 'row_counts': None}), 503
+    finally:
+        if session:
+            try:
+                session.close()
+            except Exception:
+                pass
+
+
+@app.route('/api/statistics/market-overview')
+def api_statistics_market_overview():
+    """Market overview: active listings, sold this month, avg sqm price."""
+    try:
+        session = db.get_session()
+        try:
+            data = get_market_overview(session)
+            data_as_of = get_data_as_of(session)
+            resp = jsonify({
+                'schema_version': 1,
+                'data_as_of': data_as_of.isoformat() if data_as_of else None,
+                **data,
+            })
+            resp.headers['Cache-Control'] = 'max-age=300'
+            return resp
+        finally:
+            session.close()
+    except Exception as e:
+        return _statistics_db_error(e)
+
+
+@app.route('/api/statistics/price-trends')
+def api_statistics_price_trends():
+    """Price trends over time. Params: municipality, period (month|quarter|year), months (default 12)."""
+    municipality = request.args.get('municipality')
+    period = request.args.get('period', 'month')
+    if period not in ('month', 'quarter', 'year'):
+        period = 'month'
+    months = min(24, max(1, request.args.get('months', 12, type=int)))
+
+    try:
+        session = db.get_session()
+        try:
+            data = get_price_trends(session, municipality=municipality, period=period, months=months)
+            data_as_of = get_data_as_of(session)
+            return jsonify({
+                'schema_version': 1,
+                'data_as_of': data_as_of.isoformat() if data_as_of else None,
+                'data': data,
+            })
+        finally:
+            session.close()
+    except Exception as e:
+        return _statistics_db_error(e)
+
+
+@app.route('/api/statistics/sales-volume')
+def api_statistics_sales_volume():
+    """Sales volume over time. Params: municipality, months (default 12)."""
+    municipality = request.args.get('municipality')
+    months = min(24, max(1, request.args.get('months', 12, type=int)))
+
+    try:
+        session = db.get_session()
+        try:
+            data = get_sales_volume(session, municipality=municipality, months=months)
+            data_as_of = get_data_as_of(session)
+            return jsonify({
+                'schema_version': 1,
+                'data_as_of': data_as_of.isoformat() if data_as_of else None,
+                'data': data,
+            })
+        finally:
+            session.close()
+    except Exception as e:
+        return _statistics_db_error(e)
+
+
+@app.route('/api/statistics/kommune-summary')
+def api_statistics_kommune_summary():
+    """Per-kommune summary. Params: municipality (optional filter)."""
+    municipality = request.args.get('municipality')
+
+    try:
+        session = db.get_session()
+        try:
+            data = get_kommune_summary(session, municipality=municipality)
+            data_as_of = get_data_as_of(session)
+            resp = jsonify({
+                'schema_version': 1,
+                'data_as_of': data_as_of.isoformat() if data_as_of else None,
+                'data': data,
+            })
+            resp.headers['Cache-Control'] = 'max-age=300'
+            return resp
+        finally:
+            session.close()
+    except Exception as e:
+        return _statistics_db_error(e)
+
+
+@app.route('/api/statistics/weekly-summary')
+def api_statistics_weekly_summary():
+    """Compact weekly digest for OpenClaw. Params: format=text|json (default text)."""
+    fmt = request.args.get('format', 'text').lower()
+    if fmt not in ('text', 'json'):
+        fmt = 'text'
+
+    try:
+        session = db.get_session()
+        try:
+            data = get_weekly_summary(session)
+            data_as_of = get_data_as_of(session)
+            from datetime import date
+            today = date.today()
+            iso_week = today.isocalendar()
+            period = f"{iso_week[0]}-W{iso_week[1]:02d}"
+
+            payload = {
+                'period': period,
+                'generated_at': datetime.utcnow().isoformat() + 'Z',
+                'data_as_of': str(data_as_of.date()) if data_as_of else None,
+                'summary': data,
+            }
+
+            if fmt == 'text':
+                s = payload['summary']
+                yoy_val = s.get('sqm_price_yoy_pct')
+                yoy = f"+{yoy_val}%" if yoy_val is not None and yoy_val >= 0 else f"{yoy_val}%" if yoy_val is not None else "—"
+                lines = [
+                    f"Housing Weekly ({period})",
+                    f"Active: {s.get('active_listings', 0):,} | Sold (7d): {s.get('sold_last_7_days', 0):,} | Avg kr/sqm: {s.get('avg_sqm_price_national', 0):,.0f} ({yoy} YoY)",
+                    f"Top sales: {', '.join(s.get('top_3_kommuner_by_sales', []) or ['—'])}",
+                    f"Lowest prices: {', '.join(s.get('bottom_3_kommuner_by_price', []) or ['—'])}",
+                ]
+                return Response('\n'.join(lines), mimetype='text/plain')
+            return jsonify(payload)
+        finally:
+            session.close()
+    except Exception as e:
+        if fmt == 'text':
+            return Response("Database unavailable\n", mimetype='text/plain'), 503
+        return _statistics_db_error(e)
+
+
+# ---------------------------------------------------------------------------
+# Legacy /stats (kept for compatibility)
+# ---------------------------------------------------------------------------
 
 @app.route('/stats')
 def stats():

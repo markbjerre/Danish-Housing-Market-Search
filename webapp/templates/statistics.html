@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Housing Market Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 2.2em; margin-bottom: 8px; }
+        .header p { opacity: 0.8; font-size: 1em; }
+        .nav-links {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 12px;
+            padding: 8px 18px;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.15);
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .nav-links a:hover { background: rgba(255,255,255,0.25); }
+        .data-freshness {
+            text-align: center;
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .kpi-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+        .kpi-value { font-size: 2em; font-weight: 700; color: #667eea; }
+        .kpi-label { font-size: 0.9em; opacity: 0.8; margin-top: 6px; }
+        .chart-section {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+        .chart-section h2 { font-size: 1.3em; margin-bottom: 20px; color: #667eea; }
+        .chart-controls { margin-bottom: 15px; }
+        .chart-controls select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.2);
+            color: white;
+            font-size: 0.95em;
+        }
+        .chart-container { position: relative; height: 300px; }
+        .kommune-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95em;
+        }
+        .kommune-table th, .kommune-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .kommune-table th {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            font-weight: 600;
+        }
+        .kommune-table tr:hover { background: rgba(255,255,255,0.05); }
+        .loading { text-align: center; padding: 40px; opacity: 0.8; }
+        .error { color: #f87171; padding: 20px; text-align: center; }
+        .positive { color: #4ade80; }
+        .negative { color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Housing Market Statistics</h1>
+            <p>Price trends, sales volume, and kommune comparison</p>
+        </div>
+        <div class="nav-links">
+            <a href="./">🏠 Home</a>
+            <a href="./search">🔍 Search</a>
+            <a href="./statistics" style="background: rgba(255,255,255,0.25);">📊 Statistics</a>
+            <a href="./score-calculator">🎯 Score Calculator</a>
+        </div>
+        <div class="data-freshness" id="dataFreshness">Data as of: —</div>
+        {% if db_error %}
+        <div class="error" style="margin-bottom: 20px;">Database unavailable. Statistics require a connected database. {{ db_error }}</div>
+        {% endif %}
+
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpiActive">—</div>
+                <div class="kpi-label">Active Listings</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpiSold">—</div>
+                <div class="kpi-label">Sold This Month</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpiSqm">—</div>
+                <div class="kpi-label">Avg kr/m² (12m)</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Price per m² Over Time</h2>
+            <div class="chart-controls">
+                <label>Municipality: </label>
+                <select id="priceMunicipality">
+                    <option value="all">All (National)</option>
+                    {% for m in municipalities %}
+                    <option value="{{ m }}">{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Sales Volume (Houses Sold per Month)</h2>
+            <div class="chart-controls">
+                <label>Municipality: </label>
+                <select id="salesMunicipality">
+                    <option value="all">All (National)</option>
+                    {% for m in municipalities %}
+                    <option value="{{ m }}">{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="chart-container">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Kommune Summary</h2>
+            <div id="kommuneTableContainer">
+                <div class="loading" id="kommuneLoading">Loading...</div>
+                <table class="kommune-table" id="kommuneTable" style="display: none;"></table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const basePath = window.location.pathname.includes('/housing') ? '/housing' : '';
+        const api = (path) => `${basePath}${path}`;
+
+        let priceChart, salesChart;
+
+        async function fetchJson(url) {
+            const r = await fetch(url);
+            if (!r.ok) throw new Error(r.statusText);
+            return r.json();
+        }
+
+        function fmtNum(n) {
+            if (n == null) return '—';
+            return Number(n).toLocaleString('da-DK', { maximumFractionDigits: 0 });
+        }
+
+        async function loadOverview() {
+            try {
+                const d = await fetchJson(api('/api/statistics/market-overview'));
+                document.getElementById('kpiActive').textContent = fmtNum(d.active_listings);
+                document.getElementById('kpiSold').textContent = fmtNum(d.sold_this_month);
+                document.getElementById('kpiSqm').textContent = fmtNum(d.avg_sqm_price_national);
+                if (d.data_as_of) {
+                    document.getElementById('dataFreshness').textContent = 'Data as of: ' + d.data_as_of.split('T')[0];
+                }
+            } catch (e) {
+                document.getElementById('kpiGrid').innerHTML = '<div class="error">Failed to load overview: ' + e.message + '</div>';
+            }
+        }
+
+        async function loadPriceTrends() {
+            const mun = document.getElementById('priceMunicipality').value;
+            try {
+                const d = await fetchJson(api(`/api/statistics/price-trends?municipality=${encodeURIComponent(mun)}&months=12`));
+                const labels = (d.data || []).map(x => x.date.slice(0, 7));
+                const values = (d.data || []).map(x => x.avg_sqm_price);
+                if (priceChart) priceChart.destroy();
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Avg kr/m²', data: values, borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.2)', fill: true, tension: 0.3 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#fff' } } },
+                        scales: {
+                            x: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                            y: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Price trends error:', e);
+            }
+        }
+
+        async function loadSalesVolume() {
+            const mun = document.getElementById('salesMunicipality').value;
+            try {
+                const d = await fetchJson(api(`/api/statistics/sales-volume?municipality=${encodeURIComponent(mun)}&months=12`));
+                const labels = (d.data || []).map(x => x.date.slice(0, 7));
+                const values = (d.data || []).map(x => x.sales_count);
+                if (salesChart) salesChart.destroy();
+                const ctx = document.getElementById('salesChart').getContext('2d');
+                salesChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Sales', data: values, backgroundColor: 'rgba(102,126,234,0.6)', borderColor: '#667eea', borderWidth: 1 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#fff' } } },
+                        scales: {
+                            x: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                            y: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Sales volume error:', e);
+            }
+        }
+
+        async function loadKommuneSummary() {
+            const loading = document.getElementById('kommuneLoading');
+            const table = document.getElementById('kommuneTable');
+            try {
+                const d = await fetchJson(api('/api/statistics/kommune-summary'));
+                loading.style.display = 'none';
+                table.style.display = 'table';
+                const rows = (d.data || []).map(r => {
+                    const yoy = r.sqm_price_yoy_pct != null
+                        ? `<span class="${r.sqm_price_yoy_pct >= 0 ? 'positive' : 'negative'}">${r.sqm_price_yoy_pct > 0 ? '+' : ''}${r.sqm_price_yoy_pct}%</span>`
+                        : '—';
+                    return `<tr><td>${r.name || '—'}</td><td>${fmtNum(r.sales_count)}</td><td>${fmtNum(r.avg_sqm_price)}</td><td>${yoy}</td><td>${r.avg_living_area != null ? r.avg_living_area.toFixed(1) : '—'} m²</td></tr>`;
+                }).join('');
+                table.innerHTML = `<thead><tr><th>Kommune</th><th>Sales (YTD)</th><th>Avg kr/m²</th><th>YoY %</th><th>Avg m²</th></tr></thead><tbody>${rows}</tbody>`;
+            } catch (e) {
+                loading.innerHTML = '<span class="error">Failed to load: ' + e.message + '</span>';
+            }
+        }
+
+        document.getElementById('priceMunicipality').addEventListener('change', loadPriceTrends);
+        document.getElementById('salesMunicipality').addEventListener('change', loadSalesVolume);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOverview();
+            loadPriceTrends();
+            loadSalesVolume();
+            loadKommuneSummary();
+        });
+    </script>
+</body>
+</html>

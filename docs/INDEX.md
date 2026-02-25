@@ -18,6 +18,7 @@
 | Scheduler setup | Task scheduler setup | [SCHEDULER_SETUP.md](./SCHEDULER_SETUP.md) |
 | Quick import | Import setup | [QUICK_IMPORT_SETUP.md](./QUICK_IMPORT_SETUP.md) |
 | CLAUDE dev | Dev-specific instructions | [CLAUDE_DEV.md](./CLAUDE_DEV.md) |
+| Statistics plan | Housing market stats evaluation & plan | [STATISTICS_PLAN.md](./STATISTICS_PLAN.md) |
 | Child repo config | Child repo configuration | [child_repo_config.md](./child_repo_config.md) |
 | Portable README | Portable system | [portable/README.md](../portable/README.md) |
 | Portable README | Portable details | [portable/README_PORTABLE.md](../portable/README_PORTABLE.md) |

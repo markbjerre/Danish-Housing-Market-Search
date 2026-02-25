@@ -416,6 +416,7 @@
         <ul class="nav-links">
             <li><a href="./">Home</a></li>
             <li><a href="./search">Search</a></li>
+            <li><a href="./statistics">Statistics</a></li>
             <li><a href="./score-calculator">Score Calculator</a></li>
         </ul>
     </nav>
@@ -520,7 +521,7 @@
                 // Update all navigation links
                 document.querySelectorAll('nav a').forEach(link => {
                     const href = link.getAttribute('href');
-                    if (href === './' || href === './search' || href === './score-calculator') {
+                    if (href === './' || href === './search' || href === './statistics' || href === './score-calculator') {
                         // Convert relative paths to absolute paths with basePath
                         const newHref = href.replace('./', basePath + '/');
                         link.setAttribute('href', newHref);

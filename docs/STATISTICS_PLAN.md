@@ -1,7 +1,7 @@
 # Housing Market Statistics — Evaluation & Implementation Plan
 
 **Created:** February 2026  
-**Status:** Planning  
+**Status:** Implemented (see docs/IMPLEMENTATION_SUMMARY.md)  
 **Purpose:** Evaluate current implementation, suggest statistics, and plan the statistics feature
 
 ---
@@ -288,9 +288,15 @@ Lowest prices: Holbæk, Faxe, Stevns
 
 ## 10. Success Criteria
 
-- [ ] Phase 0: Single app, clean CLAUDE.md
-- [ ] Phase 1: Indexes, verify script, health endpoint
-- [ ] Phase 2: All stats endpoints return valid data
-- [ ] Phase 3: test_statistics_api.py passes; correctness spot-check done
-- [ ] Phase 4: weekly-summary returns compact digest
-- [ ] Phase 5: Statistics page with charts, data freshness displayed
+- [x] Phase 0: Single app, clean CLAUDE.md
+- [x] Phase 1: Indexes, verify script, health endpoint
+- [x] Phase 2: All stats endpoints return valid data
+- [x] Phase 3: test_statistics_api.py passes; correctness spot-check done
+- [x] Phase 4: weekly-summary returns compact digest
+- [x] Phase 5: Statistics page with charts, data freshness displayed
+
+---
+
+## 11. Future Next Step: Move Housing DB to Homelab
+
+**Planned:** Move housing-db fully to homelab (192.168.0.252). Currently production DB is on VPS. Homelab would host the DB; housing app on VPS would connect via Tailscale or SSH tunnel. Benefits: centralize data on homelab, reduce VPS storage, align with Finnish DB pattern.

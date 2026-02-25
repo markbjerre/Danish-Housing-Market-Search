@@ -2,8 +2,11 @@
 
 **Purpose:** Single source of truth for project docs. Agents: check here before creating new docs.
 
+**Handoff:** See [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) for recent statistics feature work and future steps (incl. moving housing DB to homelab).
+
 | Doc | When to read | Path |
 |-----|--------------|------|
+| Implementation summary | Handoff, what was built, next steps (incl. DB→homelab) | [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) |
 | Database schema | Schema changes, migrations, 14 tables | [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) |
 | Project summary | High-level overview | [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) |
 | Project structure | File organization | [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) |

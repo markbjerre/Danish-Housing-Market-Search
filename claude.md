@@ -59,7 +59,13 @@ Danish-Housing-Market-Search/
 - 228K+ total properties (villas only), 1,932 active listings
 - 14 normalized tables, 388K+ historical transactions
 - Parquet backups: ~87.6 MB compressed
-- PostgreSQL: Docker on Seagate 8TB, port **5434**, user `housing`, db `housing_db`
+
+### Database Architecture
+- **PostgreSQL** runs on homelab (Docker on Seagate 8TB), port **5434**, user `housing`, db `housing_db`
+- **VPS webapp** connects to homelab DB via Tailscale (`100.83.229.69:5434`)
+- **Homelab Tailscale IP**: `100.83.229.69` (hostname: `dobbybrain`)
+- **VPS Tailscale IP**: `100.77.253.18` (hostname: `srv1070976`)
+- DB is NOT on the VPS — saves VPS disk space, single source of truth on homelab
 
 ## Instructions for Claude
 
@@ -112,6 +118,7 @@ python3 scripts/refresh_listings.py --dry-run --municipality Gentofte
 
 ## Environment Setup
 
+### Local development (homelab)
 ```bash
 # Start PostgreSQL (Docker, Seagate 8TB)
 cd ~/homelab/apps/housing-db && docker compose up -d
@@ -120,20 +127,37 @@ cd ~/homelab/apps/housing-db && docker compose up -d
 # Run web app
 cd ~/projects/Danish-Housing-Market-Search
 python webapp/app.py
-# http://127.0.0.1:5000  |  https://ai-vaerksted.cloud/housing
+# http://127.0.0.1:5000
 ```
 
-**.env variables:**
+**.env (local):**
 ```
 DB_HOST=localhost
 DB_PORT=5434
 DB_NAME=housing_db
 DB_USER=housing
 DATABASE_URL=postgresql://housing:changeme@localhost:5434/housing_db
-API_BASE_URL=https://api.boligsiden.dk
-API_RATE_LIMIT=10
-MAX_WORKERS=20
 ```
+
+### Production (VPS → homelab DB via Tailscale)
+```bash
+# SSH into VPS
+ssh root@srv1070976
+
+# Housing webapp: Docker container, auto-restarting
+# Connects to homelab DB over Tailscale (100.83.229.69:5434)
+# Traefik routes: https://ai-vaerksted.cloud/housing
+```
+
+**VPS .env (at `/root/.env`):**
+```
+DB_HOST=100.83.229.69
+DB_PORT=5434
+DB_NAME=housing_db
+DB_USER=housing
+```
+
+**VPS docker-compose** at `/root/docker-compose.yml` — housing service is `ai-vaerksted-housing`.
 
 ## Database Schema (14 Tables)
 - **Core**: properties_new, main_buildings, registrations
@@ -146,21 +170,21 @@ MAX_WORKERS=20
 ```
 Boligsiden API (228K+ properties)
          ↓
-Import Scripts (20 parallel workers)
+Import Scripts (20 parallel workers, run on homelab)
          ↓
-PostgreSQL Database (14 tables, 388K+ registrations)
-    ↙                                    ↘
-Daily Refresh         Weekly Refresh     ↓ Weekly Backup
-(Active listings)     (Full rescan)   Parquet Export (87.6 MB)
-    ↓                     ↓                  ↓
-   ~45 min            ~2-3 hours      Portable System
-                                      (No DB needed)
-         ↓                              ↙
-    PostgreSQL ←————→ Flask Web App ←——┘
+PostgreSQL (homelab, Seagate 8TB, Docker port 5434)
+    ↙                    ↘                    ↘
+Daily Refresh     Weekly Refresh        Parquet Export
+(~45 min)         (~2-3 hrs)           (87.6 MB backup)
+                                             ↓
+         ↓                            Portable System
+    Tailscale VPN (100.83.229.69)
          ↓
-    User Browser
-    • Local Dev: http://127.0.0.1:5000
-    • Production: https://ai-vaerksted.cloud/housing
+    VPS Flask App (Docker, gunicorn)
+         ↓
+    Traefik reverse proxy
+         ↓
+    https://ai-vaerksted.cloud/housing
 ```
 
 ### Web Application Components

@@ -1,7 +1,14 @@
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
+
+# Load 1Password env before other config
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from load_1password_env import load_1password_env
+load_1password_env(Path(__file__).resolve().parents[1])
 
 # Try relative import first, fallback to absolute
 try:

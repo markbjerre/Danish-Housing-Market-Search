@@ -120,7 +120,6 @@ logs/*.log
 *.tmp
 *.temp
 temp/
-tmp/
 
 # OS files
 .DS_Store

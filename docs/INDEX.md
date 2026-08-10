@@ -1,4 +1,4 @@
-# Danish Housing Market Search — Documentation Index
+# Danish Housing Market Search, documentation index
 
 **Purpose:** Single source of truth for project docs. Agents: check here before creating new docs.
 
@@ -6,6 +6,7 @@
 
 | Doc | When to read | Path |
 |-----|--------------|------|
+| **Copenhagen apartment monitor** | Apartments 5 to 10 mio., scoring, AI verdicts, Telegram. Separate subsystem, own SQLite store | [kbh/README.md](../kbh/README.md) |
 | Implementation summary | Handoff, what was built, next steps (incl. DB→homelab) | [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) |
 | Database schema | Schema changes, migrations, 14 tables | [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) |
 | Project summary | High-level overview | [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) |

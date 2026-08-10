@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block headerstats %}
+<div class="stats">
+  <span><b>{{ stats.active }}</b> aktive</span>
+  <span><b>{{ stats.filtered }}</b> frafiltreret</span>
+  <span><b>{{ stats.recommended }}</b> anbefalet</span>
+  {% if stats.last_run %}<span>sidst kørt {{ stats.last_run.started_at[:16].replace('T', ' ') }}</span>{% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 18px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } #map { height: 320px; } }
+
+#map { height: calc(100vh - 210px); position: sticky; top: 92px;
+       border-radius: var(--radius); border: 1px solid var(--line); }
+
+.card {
+  position: relative;
+  display: grid; grid-template-columns: 160px minmax(0, 1fr) auto;
+  gap: 14px; align-items: start;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px; margin-bottom: 10px;
+  color: inherit; transition: border-color .12s;
+}
+.card:hover { border-color: var(--accent); }
+
+/* Stretched overlay: the whole card is clickable without wrapping it in an
+   anchor, which would make the links and buttons inside it invalid HTML. */
+.cardlink { position: absolute; inset: 0; z-index: 1; border-radius: var(--radius); }
+.card .links, .card .rate { position: relative; z-index: 2; }
+
+.card img, .card .noimg {
+  width: 160px; height: 118px; object-fit: cover;
+  border-radius: 7px; background: var(--panel-2);
+}
+.card .addr { font-weight: 600; font-size: 15px; margin-bottom: 5px; }
+
+.card .line2 { display: flex; align-items: baseline; gap: 10px;
+  flex-wrap: wrap; margin-bottom: 7px; }
+.card .price { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+.card .sqm {
+  font-size: 14px; font-weight: 600; color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 6px; padding: 1px 7px;
+}
+.card .dims { font-size: 14px; color: var(--muted); }
+
+.card .meta { font-size: 12.5px; color: var(--muted);
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.card .verdict { font-size: 13px; margin-top: 7px; }
+
+.score { text-align: right; min-width: 92px; }
+.score .n { font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.score .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.score .delta { font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+/* align-self keeps a pill from stretching to the flex line height, which is
+   what turned them into tall empty boxes. */
+.pill { display: inline-block; align-self: center; white-space: nowrap;
+        padding: 1px 8px; border-radius: 20px; font-size: 11px; line-height: 1.6;
+        border: 1px solid var(--line); }
+.pill.good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.pill.bad  { color: var(--bad);  border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+
+.under { color: var(--good); }
+.over  { color: var(--bad); }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+
+.rate { display: flex; gap: 2px; margin-top: 8px; justify-content: flex-end; }
+.rate button {
+  background: none; border: none; cursor: pointer; padding: 0 1px;
+  font-size: 15px; line-height: 1; color: var(--line); font-family: inherit;
+}
+.rate button:hover, .rate button.on { color: var(--accent); }
+.rated { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.mynote { font-size: 12.5px; color: var(--accent); margin-top: 6px; font-style: italic; }
+
+.links { margin-top: 7px; display: flex; gap: 8px; }
+.links a {
+  font-size: 12px; padding: 2px 9px; border-radius: 20px;
+  border: 1px solid var(--line); color: var(--muted); text-decoration: none;
+}
+.links a:hover { border-color: var(--accent); color: var(--accent); }
+
+.profiles { background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 16px; margin-bottom: 12px; }
+.prow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.plabel { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin-right: 4px; }
+.pbtn { padding: 6px 13px; border-radius: 20px; border: 1px solid var(--line);
+  background: transparent; color: var(--muted); font: inherit; font-size: 13px;
+  cursor: pointer; }
+.pbtn:hover { border-color: var(--accent); color: var(--accent); }
+.pbtn.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.pnote { font-size: 12px; color: var(--muted); flex-basis: 100%; margin-top: 2px; }
+
+.sliders { margin-top: 14px; display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.sliders label { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.sliders label > span { flex: 0 0 175px; color: var(--muted); }
+.sliders input[type=range] { flex: 1; accent-color: var(--accent); }
+.sliders b { flex: 0 0 26px; text-align: right; font-variant-numeric: tabular-nums; }
+.srow { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center;
+  margin-top: 4px; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="profiles">
+  <div class="prow">
+    <span class="plabel">Vægtning</span>
+    {% for key, p in profiles.items() %}
+    <button type="button" class="pbtn {{ 'on' if profile_key == key }}"
+            data-profile="{{ key }}" title="{{ p.note }}">{{ p.name }}</button>
+    {% endfor %}
+    <button type="button" class="pbtn {{ 'on' if profile_key == 'custom' }}"
+            id="customBtn">Tilpas</button>
+    <span class="pnote">
+      {% if profile_key == 'custom' %}Din egen vægtning.
+      {% else %}{{ profiles[profile_key].note }}{% endif %}
+    </span>
+  </div>
+
+  <div class="sliders" id="sliders" {% if profile_key != 'custom' %}hidden{% endif %}>
+    {% for key in factor_keys %}
+    <label>
+      <span>{{ labels[key] }}</span>
+      <input type="range" min="0" max="50" step="1" data-key="{{ key }}"
+             value="{{ weights[key]|round|int }}">
+      <b data-out="{{ key }}">{{ weights[key]|round|int }}</b>
+    </label>
+    {% endfor %}
+    <div class="srow">
+      <button type="button" class="pbtn" id="applyCustom">Gem vægtning</button>
+      <span class="muted" style="font-size:12px">
+        Normaliseres til 100. Ingen boliger vurderes forfra: kun regnestykket ændrer sig.
+      </span>
+    </div>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <div>
+    <label for="min_score">Min. score</label>
+    <input id="min_score" name="min_score" type="number" min="0" max="100" step="1"
+           value="{{ args.get('min_score', '') }}" placeholder="0">
+  </div>
+  <div>
+    <label for="max_price">Maks. pris</label>
+    <input id="max_price" name="max_price" type="number" step="100000"
+           value="{{ args.get('max_price', '') }}" placeholder="10000000">
+  </div>
+  <div>
+    <label for="min_area">Min. m2</label>
+    <input id="min_area" name="min_area" type="number" step="5"
+           value="{{ args.get('min_area', '') }}" placeholder="90">
+  </div>
+  <div>
+    <label for="max_water">Maks. m til vand</label>
+    <input id="max_water" name="max_water" type="number" step="100"
+           value="{{ args.get('max_water', '') }}" placeholder="alle">
+  </div>
+  <div>
+    <label for="hood">Kvarter</label>
+    <select id="hood" name="hood">
+      <option value="">Alle</option>
+      {% for h in hoods %}
+      <option value="{{ h }}" {{ 'selected' if args.get('hood') == h }}>{{ h }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="verdict">Vurdering</label>
+    <select id="verdict" name="verdict">
+      <option value="">Alle</option>
+      {% for v in ['se den', 'måske', 'spring over'] %}
+      <option value="{{ v }}" {{ 'selected' if args.get('verdict') == v }}>{{ v }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="sort">Sortér</label>
+    <select id="sort" name="sort">
+      {% for key, (label, _) in sorts.items() %}
+      <option value="{{ key }}" {{ 'selected' if sort_key == key }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="checks">
+    <label><input type="checkbox" name="balcony" value="1" {{ 'checked' if args.get('balcony') }}> Altan</label>
+    <label><input type="checkbox" name="drops" value="1" {{ 'checked' if args.get('drops') }}> Prisfald</label>
+  </div>
+  <div><button type="submit">Filtrér</button></div>
+</form>
+
+<p class="muted" style="margin: 0 0 12px">
+  Viser <b class="tabnum">{{ rows|length }}</b> af {{ total }} aktive boliger.
+</p>
+
+<div class="layout">
+  <div>
+    {% for r in rows %}
+    {# The card is a div, not an anchor. It used to be an anchor, and the
+       Boligsiden links nested inside it were a second anchor, which is invalid
+       HTML: the parser closed the outer one early and the whole grid collapsed.
+       A stretched overlay link gives the same whole-card click, legally. #}
+    <article class="card {{ 'rated' if r.stars }}">
+      <a class="cardlink" href="/bolig/{{ r.case_id }}"
+         aria-label="{{ r.address }}"></a>
+
+      {% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">
+      {% else %}<div class="noimg"></div>{% endif %}
+
+      <div style="min-width:0">
+        <div class="addr">{{ r.address }}</div>
+        <div class="line2">
+          <b class="price tabnum">{{ r.price|kr }} kr.</b>
+          <span class="sqm tabnum">{{ r.per_area_price|kr }} kr/m²</span>
+          <span class="dims tabnum">{{ r.living_area|kr }} m²{% if r.number_of_rooms %},
+            {{ r.number_of_rooms|round|int }} vær.{% endif %}</span>
+        </div>
+        <div class="meta">
+          <span>{{ r.neighbourhood or 'ukendt kvarter' }}</span>
+          {% if r.water_distance_m is not none %}
+          <span>{{ r.water_distance_m|round|int }} m til {{ r.water_name or 'vandet' }}</span>
+          {% endif %}
+          {% if r.balcony_ai == 1 %}<span class="pill good" title="Bekræftet af vurderingen">altan</span>
+          {% elif r.balcony_ai == 0 %}<span class="pill" title="Vurderingen fandt ingen altan">ingen altan</span>
+          {% elif r.has_balcony or r.has_balcony_text %}<span class="pill good">altan</span>{% endif %}
+          {% if r.has_elevator %}<span class="pill">elevator</span>{% endif %}
+          {% if r.energy_label %}<span class="pill">energi {{ r.energy_label|upper }}</span>{% endif %}
+          {% if r.days_listed is not none %}<span>{{ r.days_listed }} dage</span>{% endif %}
+          {% if r.price_change_pct and r.price_change_pct < 0 %}
+          <span class="pill warn">sat ned {{ (r.price_change_pct|abs)|round(1) }}%</span>
+          {% endif %}
+          {% if r.expense_is_outlier %}
+          <span class="pill bad" title="Medianen er {{ r.expense_median|round|int }} kr/m2/md">
+            høj ejerudgift {{ r.expense_per_sqm|round|int }} kr/m2/md</span>
+          {% endif %}
+          {% if r.page_views %}<span>{{ r.page_views }} visninger, {{ r.favourites or 0 }} favoritter</span>{% endif %}
+        </div>
+        {% if r.verdict %}
+        <div class="verdict">
+          <span class="pill {{ 'good' if r.verdict.verdict == 'se den' else ('bad' if r.verdict.verdict == 'spring over' else 'warn') }}">{{ r.verdict.verdict }}</span>
+          {{ r.verdict.one_liner }}
+        </div>
+        {% elif r.headline %}
+        <div class="verdict muted">{{ r.headline }}</div>
+        {% endif %}
+        {% if r.rating_note %}<div class="mynote">Din note: {{ r.rating_note }}</div>{% endif %}
+
+        {# Check the data at the source without going via the detail page.
+           These sit above the stretched overlay, so they are clickable. #}
+        <div class="links">
+          {% if r.boligsiden_url %}
+          <a href="{{ r.boligsiden_url }}" target="_blank" rel="noopener">Boligsiden</a>
+          {% endif %}
+          {% if r.case_url %}
+          <a href="{{ r.case_url }}" target="_blank" rel="noopener">Mægler{% if r.realtor_name %}, {{ r.realtor_name }}{% endif %}</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="score">
+        <div class="n">{{ (r.score or 0)|round|int }}</div>
+        <div class="lbl">score</div>
+        {% if r.vs_benchmark_pct is not none %}
+        <div class="delta {{ 'under' if r.vs_benchmark_pct < 0 else 'over' }}">
+          {{ r.vs_benchmark_pct|pct }}<br><span class="muted" style="font-size:10px">mod nabolaget</span>
+        </div>
+        {% endif %}
+        <div class="rate" data-case="{{ r.case_id }}" data-stars="{{ r.stars or 0 }}">
+          {% for n in [1,2,3,4,5] %}<button type="button" data-n="{{ n }}"
+            title="{{ n }} stjerner"
+            class="{{ 'on' if r.stars and n <= r.stars }}">&#9733;</button>{% endfor %}
+        </div>
+      </div>
+    </article>
+    {% else %}
+    <div class="empty">Ingen boliger matcher filtrene.</div>
+    {% endfor %}
+  </div>
+
+  <div id="map"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- return to where you were ----------------------------------------------
+// Filters already live in the query string, so they survive on their own. What
+// does not survive is the scroll position, and a list of 500 is unusable if
+// every visit to a flat sends you back to the top. Keyed by the query string,
+// so a different filter set gets its own remembered position.
+const SCROLL_KEY = 'kbh:scroll:' + window.location.search;
+
+function rememberScroll() {
+  sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+}
+window.addEventListener('pagehide', rememberScroll);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') rememberScroll();
+});
+// Clicking through to a flat is the case that matters most.
+document.querySelectorAll('.cardlink').forEach(a =>
+  a.addEventListener('click', rememberScroll));
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.addEventListener('load', () => {
+  const y = parseInt(sessionStorage.getItem(SCROLL_KEY) || '0', 10);
+  if (y > 0) window.scrollTo(0, y);
+});
+
+// --- weight profiles -------------------------------------------------------
+// Switching profile is a POST and a reload. Nothing is re-evaluated: the server
+// recomputes every total from factor scores it already has.
+async function setProfile(body) {
+  const res = await fetch('/api/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if ((await res.json()).ok) window.location.reload();
+}
+
+document.querySelectorAll('.pbtn[data-profile]').forEach(b =>
+  b.addEventListener('click', () => setProfile({ profile: b.dataset.profile })));
+
+const sliders = document.getElementById('sliders');
+document.getElementById('customBtn').addEventListener('click', () => {
+  sliders.hidden = !sliders.hidden;
+});
+
+sliders.querySelectorAll('input[type=range]').forEach(input => {
+  input.addEventListener('input', () => {
+    sliders.querySelector(`b[data-out="${input.dataset.key}"]`).textContent = input.value;
+  });
+});
+
+document.getElementById('applyCustom').addEventListener('click', () => {
+  const weights = {};
+  sliders.querySelectorAll('input[type=range]').forEach(i => {
+    weights[i.dataset.key] = +i.value;
+  });
+  if (Object.values(weights).every(v => v === 0)) {
+    alert('Mindst én faktor skal veje mere end nul.');
+    return;
+  }
+  setProfile({ profile: 'custom', weights: weights });
+});
+
+// Star clicks live inside the card link, so the click must be stopped from
+// following it. Rating from the list has to cost nothing.
+document.querySelectorAll('.rate').forEach(widget => {
+  widget.addEventListener('click', async e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const current = +widget.dataset.stars || 0;
+    const clicked = +btn.dataset.n;
+    // Clicking the star you already gave clears the rating.
+    const stars = clicked === current ? 0 : clicked;
+    try {
+      const res = await fetch('/api/rate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_id: widget.dataset.case, stars: stars })
+      });
+      if (!(await res.json()).ok) return;
+      widget.dataset.stars = stars;
+      widget.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', stars > 0 && +b.dataset.n <= stars));
+      widget.closest('.card').classList.toggle('rated', stars > 0);
+    } catch (err) { console.error(err); }
+  });
+});
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map', { scrollWheelZoom: true }).setView([55.6800, 12.5750], 12);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap, &copy; CARTO', maxZoom: 19
+}).addTo(map);
+
+function colour(score) {
+  if (score >= 78) return '#4ade80';
+  if (score >= 68) return '#a3e635';
+  if (score >= 58) return '#facc15';
+  if (score >= 48) return '#fb923c';
+  return '#f87171';
+}
+
+fetch('/api/map' + window.location.search)
+  .then(r => r.json())
+  .then(points => {
+    const group = [];
+    points.forEach(p => {
+      const m = L.circleMarker([p.lat, p.lon], {
+        radius: 5 + (p.score || 0) / 22,
+        color: colour(p.score || 0),
+        fillColor: colour(p.score || 0),
+        fillOpacity: 0.75,
+        weight: 1
+      }).addTo(map);
+      m.bindPopup(
+        `<b>${p.address}</b><br>${(p.price || 0).toLocaleString('da-DK')} kr, ${p.area || '?'} m2` +
+        `<br>${p.hood || ''}, score ${Math.round(p.score || 0)}` +
+        `<br><a href="/bolig/${p.id}">Åbn</a>`
+      );
+      group.push(m);
+    });
+    if (group.length) map.fitBounds(L.featureGroup(group).getBounds().pad(0.08));
+  });
+</script>
+{% endblock %}

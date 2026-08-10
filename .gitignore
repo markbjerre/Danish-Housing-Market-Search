@@ -294,5 +294,19 @@ local_settings.py
 !alembic/
 
 # ============================================================================
+# COPENHAGEN APARTMENT MONITOR (kbh/)
+# ============================================================================
+# The SQLite store is disposable: Boligsiden is the source of truth and a
+# single run rebuilds it.
+kbh/data/*.sqlite3
+kbh/data/*.sqlite3-shm
+kbh/data/*.sqlite3-wal
+
+# The cached OpenStreetMap water geometry IS committed on purpose. It is under
+# a megabyte, it changes about as often as the harbour does, and committing it
+# means a fresh deploy does not depend on an Overpass mirror being up.
+!kbh/data/water.geojson
+
+# ============================================================================
 # END OF .GITIGNORE
 # ============================================================================

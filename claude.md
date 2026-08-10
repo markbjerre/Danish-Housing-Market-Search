@@ -7,7 +7,7 @@ Data platform
 | Action | Command |
 |--------|---------|
 | **Main entry** | `webapp/app.py` (Flask, PostgreSQL) |
-| **Run locally** | `./scripts/start_local_dev.sh` (Linux/Mac) or `scripts\start_local_dev.bat` (Windows) — or `python webapp/app.py` with .env |
+| **Run locally** | `./scripts/start_local_dev.sh` (Linux/Mac) or `scripts\start_local_dev.bat` (Windows), or `python webapp/app.py` with .env |
 | **Run tests** | `./scripts/test.sh` or `npm test` (Playwright) |
 
 ## Project Description
@@ -49,11 +49,11 @@ Danish-Housing-Market-Search/
 
 ## Critical API Learnings
 - Use `priceCash` not `price`; `zipCodes` (plural) not `zipCode`
-- 10K pagination limit — large municipalities need zip code subdivision
+- 10K pagination limit, so large municipalities need zip code subdivision
 - Rate limit: stay under 10 req/s
 - `cases[]` only appear when `isOnMarket=true`
-- Search endpoint (`/search/addresses`) returns full payload incl. `cases` — **no separate detail call needed for active listings**
-- `isOnMarket=true` search param is **ignored by API** — always returns all villas
+- Search endpoint (`/search/addresses`) returns full payload incl. `cases`, so **no separate detail call needed for active listings**
+- `isOnMarket=true` search param is **ignored by API**, it always returns all villas
 
 ## Database State (Feb 2026)
 - 228K+ total properties (villas only), 1,932 active listings
@@ -65,13 +65,13 @@ Danish-Housing-Market-Search/
 - **VPS webapp** connects to homelab DB via Tailscale (`100.83.229.69:5434`)
 - **Homelab Tailscale IP**: `100.83.229.69` (hostname: `dobbybrain`)
 - **VPS Tailscale IP**: `100.77.253.18` (hostname: `srv1070976`)
-- DB is NOT on the VPS — saves VPS disk space, single source of truth on homelab
+- DB is NOT on the VPS, which saves VPS disk space, single source of truth on homelab
 
 ## Instructions for Claude
 
 ### Testing & Commits
 - Test locally before pushing (scripts/start_local_dev.sh or scripts\start_local_dev.bat); build complete features then commit (no micro-commits)
-- Pragmatic testing — catch obvious issues, don't over-engineer test coverage
+- Pragmatic testing: catch obvious issues, don't over-engineer test coverage
 
 ### Code Quality
 - Challenge assumptions; ask for clarity on vague instructions
@@ -83,7 +83,7 @@ Danish-Housing-Market-Search/
 ### Added Feb 2026:
 - ✅ `cases[].realEstate`: `downPayment`, `grossMortgage`, `netMortgage` → `down_payment`, `gross_mortgage`, `net_mortgage`
 - ✅ `cases[].daysListed.days` → `days_listed`
-- ❌ `cases[].realtor` — excluded (not needed)
+- ❌ `cases[].realtor`, excluded (not needed)
 
 ### Medium value (not yet added):
 - `cases[].numberOfRooms/Bathrooms/Floors/Toilets` (more reliable than building-level data)
@@ -104,9 +104,9 @@ python3 scripts/refresh_listings.py --dry-run --municipality Gentofte
 ```
 
 **Key lessons:**
-- `ALL_MUNICIPALITIES` list must stay in sync with DB — missing ones accumulate stale listings silently
-- Average days-on-market is 160–320 days — most Oct 2025 listings are genuinely still active
-- Properties can be sold+relisted with new `case_id` — refresh correctly adds new case alongside old
+- `ALL_MUNICIPALITIES` list must stay in sync with DB, or missing ones accumulate stale listings silently
+- Average days-on-market is 160 to 320 days, so most Oct 2025 listings are genuinely still active
+- Properties can be sold+relisted with new `case_id`, and refresh correctly adds new case alongside old
 
 ## Future Plans
 - 🔄 Automated daily/weekly refresh scheduler (cron jobs)
@@ -157,7 +157,7 @@ DB_NAME=housing_db
 DB_USER=housing
 ```
 
-**VPS docker-compose** at `/root/docker-compose.yml` — housing service is `ai-vaerksted-housing`.
+**VPS docker-compose** at `/root/docker-compose.yml`. The housing service is `ai-vaerksted-housing`.
 
 ## Database Schema (14 Tables)
 - **Core**: properties_new, main_buildings, registrations
@@ -192,6 +192,28 @@ Daily Refresh     Weekly Refresh        Parquet Export
 - **Results Page**: Sortable list with pagination (50 per page)
 - **Property Details**: Full property information with images
 - **Statistics**: Market analytics dashboard (see docs/STATISTICS_PLAN.md)
+
+## Subsystem: Copenhagen apartment monitor (`kbh/`)
+
+A second, independent system living in `kbh/`. It watches **apartments** in
+København and Frederiksberg between 5 and 10 mio. kr., scores them, has Claude
+read each listing, and pushes the good ones to Telegram.
+
+It shares nothing with the villa pipeline above except the repo. Own SQLite
+store at `kbh/data/kbh.sqlite3`, own config, own Flask app on port 5001. It does
+not touch PostgreSQL. Changing anything in `src/`, `webapp/` or `scripts/` has no
+effect on it, and the reverse holds.
+
+```bash
+python -m kbh.pipeline run      # fetch, score, verdicts, alerts
+python -m kbh.webapp.app        # UI on port 5001
+python -m kbh.bot               # interactive Telegram bot
+```
+
+Full documentation, including API findings that **correct** several of the
+"Critical API Learnings" above, is in [kbh/README.md](kbh/README.md). In
+particular: `/search/cases` returns the full payload so no detail call is needed,
+`municipalities` accepts only one name at a time, and `hasBalcony` is unreliable.
 
 ## Documentation
 See [docs/INDEX.md](docs/INDEX.md). Do not create new docs without updating INDEX.

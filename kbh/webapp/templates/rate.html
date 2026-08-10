@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Bedøm boliger{% endblock %}
+
+{% block headerstats %}
+<div class="stats">
+  <span><b id="doneCount">{{ counts.total }}</b> bedømt</span>
+  <span><b id="leftCount">{{ queue|length }}</b> tilbage</span>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+.stage { max-width: 980px; margin: 0 auto; }
+.cardbig {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; overflow: hidden;
+}
+.photo { width: 100%; height: 380px; object-fit: cover; background: var(--panel-2); display: block; }
+.photo.none { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.body { padding: 18px 20px 20px; }
+.addr { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 4px; }
+.facts { font-size: 16px; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.meta { font-size: 13px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 11px; border: 1px solid var(--line); }
+.pill.good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.pill.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+
+.verdict { font-size: 14px; border-left: 3px solid var(--line); padding-left: 12px; margin-bottom: 16px; }
+.verdict .flags { color: var(--muted); font-size: 13px; margin-top: 5px; }
+
+.stars { display: flex; gap: 8px; margin-bottom: 12px; }
+.star {
+  width: 62px; height: 56px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--muted); font-size: 20px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: all .1s; font-family: inherit;
+}
+.star small { font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
+.star:hover { border-color: var(--accent); color: var(--text); }
+.star.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+textarea.note {
+  width: 100%; min-height: 70px; padding: 10px 12px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  font: inherit; font-size: 14px; resize: vertical; margin-bottom: 12px;
+}
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn {
+  padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line);
+  background: transparent; color: var(--text); font: inherit; font-size: 14px;
+  cursor: pointer; text-decoration: none;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { border-color: var(--accent); color: var(--accent); }
+.btn.primary:hover { background: var(--accent); color: var(--bg); }
+.hint { font-size: 12px; color: var(--muted); margin-left: auto; }
+kbd {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+  padding: 1px 5px; font-size: 11px; font-family: inherit;
+}
+.saved { color: var(--good); font-size: 13px; opacity: 0; transition: opacity .2s; }
+.saved.show { opacity: 1; }
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.recent { margin-top: 26px; }
+.recent h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.recent a { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line);
+  font-size: 13px; text-decoration: none; align-items: baseline; }
+.recent .s { color: var(--accent); font-weight: 600; min-width: 34px; }
+.recent .n { color: var(--muted); font-style: italic; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% if not queue %}
+<div class="empty">
+  <p>Alt er bedømt. Godt gået.</p>
+  <p><a class="btn" href="/moenstre">Se mønstrene</a></p>
+</div>
+{% else %}
+<div class="stage">
+  <div class="cardbig" id="card"></div>
+
+  <div class="recent" id="recentBox">
+    <h2>Senest bedømt</h2>
+    <div id="recentList">
+      {% for r in recent %}
+      <a href="/bolig/{{ r.case_id }}">
+        <span class="s">{{ '*' * r.stars }}</span>
+        <span>{{ r.address }}</span>
+        {% if r.rating_note %}<span class="n">{{ r.rating_note[:70] }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const QUEUE = {{ queue|tojson }};
+let idx = 0;
+let stars = 0;
+
+const kr = n => n == null ? '?' : Math.round(n).toLocaleString('da-DK');
+
+function render() {
+  const r = QUEUE[idx];
+  if (!r) {
+    document.getElementById('card').innerHTML =
+      '<div class="body" style="text-align:center;padding:50px">' +
+      '<p>Færdig med bunken.</p><a class="btn primary" href="/moenstre">Se mønstrene</a></div>';
+    return;
+  }
+  stars = 0;
+  const v = r.verdict;
+  const bits = [];
+  if (r.number_of_rooms) bits.push(Math.round(r.number_of_rooms) + ' vær.');
+  if (r.floor) bits.push(r.floor + '. sal');
+  if (r.balcony_ai === 1 || (r.balcony_ai == null && (r.has_balcony || r.has_balcony_text)))
+    bits.push('<span class="pill good">altan</span>');
+  if (r.has_elevator) bits.push('<span class="pill">elevator</span>');
+  if (r.energy_label) bits.push('<span class="pill">energi ' + r.energy_label.toUpperCase() + '</span>');
+  if (r.days_listed != null) bits.push(r.days_listed + ' dage');
+  if (r.price_change_pct < 0) bits.push('<span class="pill warn">sat ned ' + Math.abs(r.price_change_pct).toFixed(1) + '%</span>');
+  if (r.expense_is_outlier) bits.push('<span class="pill bad">høj ejerudgift</span>');
+
+  const delta = r.vs_benchmark_pct != null
+    ? `<span class="${r.vs_benchmark_pct < 0 ? 'pill good' : 'pill'}">${r.vs_benchmark_pct > 0 ? '+' : ''}${Math.round(r.vs_benchmark_pct)}% mod nabolaget</span>` : '';
+
+  document.getElementById('card').innerHTML = `
+    ${r.image_url ? `<img class="photo" src="${r.image_url}" alt="">`
+                  : '<div class="photo none">Intet billede</div>'}
+    <div class="body">
+      <p class="addr">${r.address}</p>
+      <p class="facts">${kr(r.price)} kr &middot; ${kr(r.living_area)} m&sup2; &middot;
+        ${kr(r.per_area_price)} kr/m&sup2; ${delta}</p>
+      <div class="meta">
+        <span>${r.neighbourhood || ''}</span>
+        ${r.water_distance_m != null ? `<span>${Math.round(r.water_distance_m)} m til ${r.water_name || 'vandet'}</span>` : ''}
+        <span>score ${Math.round(r.score || 0)}</span>
+        ${bits.join(' ')}
+      </div>
+      ${v ? `<div class="verdict"><b>${v.verdict}</b>: ${v.one_liner}
+             <div class="flags">${(v.red_flags || []).slice(0,2).map(f => '&minus; ' + f).join('<br>')}</div></div>` : ''}
+
+      <div class="stars" id="starRow">
+        ${[1,2,3,4,5].map(n => `<button class="star" data-n="${n}">${n}<small>${
+          ['nej','svag','ok','god','top'][n-1]}</small></button>`).join('')}
+      </div>
+      <textarea class="note" id="note" placeholder="Hvorfor? Fx: for mørkt, elsker altanen, for tæt på Amagerbrogade. Kommentaren bruges til at finde mønstre."></textarea>
+      <div class="actions">
+        <button class="btn primary" id="saveBtn">Gem og næste</button>
+        <button class="btn" id="skipBtn">Spring over</button>
+        <a class="btn" href="/bolig/${r.case_id}" target="_blank">Detaljer</a>
+        ${r.boligsiden_url ? `<a class="btn" href="${r.boligsiden_url}" target="_blank" rel="noopener">Boligsiden</a>` : ''}
+        <span class="saved" id="saved">Gemt</span>
+        <span class="hint"><kbd>1</kbd>&ndash;<kbd>5</kbd> stjerner &middot; <kbd>Enter</kbd> gem &middot; <kbd>S</kbd> spring over</span>
+      </div>
+    </div>`;
+
+  document.querySelectorAll('.star').forEach(b =>
+    b.addEventListener('click', () => setStars(+b.dataset.n)));
+  document.getElementById('saveBtn').addEventListener('click', save);
+  document.getElementById('skipBtn').addEventListener('click', next);
+}
+
+function setStars(n) {
+  stars = n;
+  document.querySelectorAll('.star').forEach(b =>
+    b.classList.toggle('on', +b.dataset.n <= n));
+}
+
+function next() {
+  idx++;
+  document.getElementById('leftCount').textContent = Math.max(QUEUE.length - idx, 0);
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+async function save() {
+  const r = QUEUE[idx];
+  if (!r) return;
+  if (!stars) { setStars(3); }
+  const note = document.getElementById('note').value;
+  try {
+    const res = await fetch('/api/rate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ case_id: r.case_id, stars: stars, note: note })
+    });
+    const j = await res.json();
+    if (j.ok) {
+      document.getElementById('doneCount').textContent = j.counts.total;
+      const el = document.getElementById('saved');
+      el.classList.add('show');
+      const row = document.createElement('a');
+      row.href = '/bolig/' + r.case_id;
+      row.innerHTML = `<span class="s">${'*'.repeat(stars)}</span><span>${r.address}</span>` +
+                      (note ? `<span class="n">${note.slice(0,70)}</span>` : '');
+      const list = document.getElementById('recentList');
+      list.prepend(row);
+      setTimeout(next, 140);
+    }
+  } catch (e) { alert('Kunne ikke gemme: ' + e); }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' && e.key !== 'Enter') return;
+  if (e.key >= '1' && e.key <= '5') { setStars(+e.key); e.preventDefault(); }
+  else if (e.key === 'Enter') { save(); e.preventDefault(); }
+  else if (e.key.toLowerCase() === 's' && e.target.tagName !== 'TEXTAREA') { next(); }
+});
+
+render();
+</script>
+{% endblock %}

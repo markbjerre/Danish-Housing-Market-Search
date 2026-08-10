@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}{{ row.address }}{% endblock %}
+
+{% block head %}
+<style>
+.top { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 900px) { .top { grid-template-columns: 1fr; } }
+
+.gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.gallery img { width: 100%; height: 130px; object-fit: cover; border-radius: 7px; }
+.gallery img:first-child { grid-column: span 3; height: 300px; }
+
+.panel { background: var(--panel); border: 1px solid var(--line);
+         border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+.panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+            color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+
+.headline { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em; }
+.subline { color: var(--muted); margin-bottom: 14px; }
+
+.bigscore { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.bigscore .n { font-size: 46px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+
+table.kv { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.kv td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.kv td:first-child { color: var(--muted); width: 45%; }
+table.kv td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+.factor { margin-bottom: 11px; }
+.factor .head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
+.factor .bar { height: 6px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.factor .bar span { display: block; height: 100%; border-radius: 4px; }
+.factor .why { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+.flags li { margin-bottom: 5px; }
+.flags.red li::marker { color: var(--bad); }
+.flags.green li::marker { color: var(--good); }
+ul { margin: 0; padding-left: 18px; }
+
+.verdictbox { border-left: 3px solid var(--accent); padding-left: 14px; }
+.verdictbox .v { font-size: 18px; font-weight: 650; margin-bottom: 6px; }
+
+.btn { display: inline-block; padding: 8px 14px; border-radius: 7px;
+       border: 1px solid var(--accent); color: var(--accent);
+       text-decoration: none; font-size: 14px; margin-right: 8px; }
+.btn:hover { background: var(--accent); color: var(--bg); }
+.under { color: var(--good); } .over { color: var(--bad); }
+
+.rate { display: flex; gap: 8px; margin-bottom: 12px; }
+.rate button {
+  width: 58px; height: 52px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--muted); font-size: 18px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: inherit; transition: all .1s;
+}
+.rate button small { font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
+.rate button:hover { border-color: var(--accent); color: var(--text); }
+.rate button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+textarea.note {
+  width: 100%; min-height: 70px; padding: 10px 12px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  font: inherit; font-size: 14px; resize: vertical; margin-bottom: 10px;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+{# Going back through history keeps the filters and the remembered scroll
+   position. The href is the fallback for a direct visit with no history. #}
+<p style="margin-top:0">
+  <a href="/" class="muted" style="text-decoration:none" id="backLink">&larr; Tilbage til listen</a>
+</p>
+
+<div class="top">
+  <div>
+    {% if row.images %}
+    <div class="gallery">
+      {% for url in row.images[:7] %}<img src="{{ url }}" alt="" loading="lazy">{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Mæglerens beskrivelse</h2>
+      <p style="font-weight:600;margin-top:0">{{ row.description_title }}</p>
+      <p style="white-space:pre-wrap;margin-bottom:0">{{ row.description_body }}</p>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h1 class="headline">{{ row.address }}</h1>
+      <div class="subline">
+        {{ row.neighbourhood or 'ukendt kvarter' }}
+        {%- if row.parish %}, sognet {{ row.parish }}{% endif %}
+      </div>
+
+      <div class="bigscore">
+        <div class="n">{{ (row.score or 0)|round|int }}</div>
+        <div>
+          <div class="muted" style="font-size:12px">samlet score af 100</div>
+          {% if row.vs_benchmark_pct is not none %}
+          <div class="{{ 'under' if row.vs_benchmark_pct < 0 else 'over' }}">
+            {{ row.vs_benchmark_pct|pct }} mod benchmark
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <table class="kv">
+        <tr><td>Udbudspris</td><td>{{ row.price|kr }} kr.</td></tr>
+        <tr><td>Kvadratmeterpris</td><td>{{ row.per_area_price|kr }} kr/m2</td></tr>
+        <tr><td>Benchmark</td>
+            <td>{{ row.parish_sqm_price|kr }} kr/m2</td></tr>
+        <tr><td>Benchmarkgrundlag</td>
+            <td style="text-align:right;font-size:12.5px">{{ row.benchmark_source or row.benchmark_basis }}</td></tr>
+        <tr><td>Boligareal</td><td>{{ row.living_area|kr }} m2</td></tr>
+        <tr><td>Værelser</td><td>{{ row.number_of_rooms|kr }}</td></tr>
+        <tr><td>Etage</td><td>{{ row.floor or '?' }}</td></tr>
+        <tr><td>Ejerudgift</td>
+            <td>{{ row.monthly_expense|kr }} kr/md.
+              {%- if row.expense_per_sqm %} <span class="muted">({{ row.expense_per_sqm|round|int }} kr/m2){% endif %}</span></td></tr>
+        <tr><td>Udbetaling</td><td>{{ row.down_payment|kr }} kr.</td></tr>
+        <tr><td>Nettoydelse</td><td>{{ row.net_mortgage|kr }} kr/md.</td></tr>
+        <tr><td>Opført</td><td>{{ row.year_built or '?' }}{% if row.year_renovated %}, renoveret {{ row.year_renovated }}{% endif %}</td></tr>
+        <tr><td>Energimærke</td><td>{{ (row.energy_label or '?')|upper }}</td></tr>
+        <tr><td>Offentlig vurdering</td><td>{{ row.latest_valuation|kr }} kr.</td></tr>
+        <tr><td>Afstand til vand</td>
+            <td>{% if row.water_distance_m is not none %}{{ row.water_distance_m|round|int }} m til {{ row.water_name }}{% else %}?{% endif %}</td></tr>
+        <tr><td>Dage til salg</td><td>{{ row.days_listed if row.days_listed is not none else '?' }}</td></tr>
+        <tr><td>Prisændring</td><td>{{ row.price_change_pct|pct if row.price_change_pct else '0%' }}</td></tr>
+        <tr><td>Interesse på Boligsiden</td>
+            <td>{{ row.page_views or '?' }} visninger, {{ row.favourites or 0 }} favoritter</td></tr>
+        <tr><td>Mægler</td><td style="text-align:right;font-size:12.5px">{{ row.realtor_name or '?' }}</td></tr>
+      </table>
+
+      <p style="margin-bottom:0;margin-top:14px">
+        {% if row.boligsiden_url %}<a class="btn" href="{{ row.boligsiden_url }}" target="_blank" rel="noopener">Boligsiden</a>{% endif %}
+        {% if row.case_url %}<a class="btn" href="{{ row.case_url }}" target="_blank" rel="noopener">Mægler</a>{% endif %}
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>Din bedømmelse</h2>
+      <div class="rate" id="rate" data-case="{{ row.case_id }}" data-stars="{{ row.stars or 0 }}">
+        {% for n in [1,2,3,4,5] %}
+        <button type="button" data-n="{{ n }}" class="{{ 'on' if row.stars and n <= row.stars }}">
+          {{ n }}<small>{{ ['nej','svag','ok','god','top'][n-1] }}</small>
+        </button>
+        {% endfor %}
+      </div>
+      <textarea id="note" class="note" placeholder="Hvorfor? Kommentaren bruges til at finde mønstre i hvad du kan lide.">{{ row.rating_note or '' }}</textarea>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn" id="saveRating" style="cursor:pointer;background:none;font:inherit">Gem</button>
+        <span id="savedMsg" class="muted" style="font-size:13px;opacity:0;transition:opacity .2s">Gemt</span>
+      </div>
+    </div>
+
+    {% if row.verdict %}
+    <div class="panel">
+      <h2>Maskinvurdering</h2>
+      <div class="verdictbox">
+        <div class="v">{{ row.verdict.verdict|capitalize }}
+          <span class="muted" style="font-size:13px;font-weight:400">({{ row.verdict.confidence }} pct. sikker)</span>
+        </div>
+        <p style="margin-top:0">{{ row.verdict.one_liner }}</p>
+      </div>
+
+      {% if row.verdict.red_flags %}
+      <p style="margin-bottom:4px;font-size:13px;color:var(--muted)">Problemer</p>
+      <ul class="flags red">{% for f in row.verdict.red_flags %}<li>{{ f }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      {% if row.verdict.green_flags %}
+      <p style="margin-bottom:4px;margin-top:12px;font-size:13px;color:var(--muted)">Fordele</p>
+      <ul class="flags green">{% for f in row.verdict.green_flags %}<li>{{ f }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      <p style="margin-bottom:4px;margin-top:14px;font-size:13px;color:var(--muted)">Hvad billederne viser</p>
+      <p style="margin-top:0">{{ row.verdict.photos_say }}</p>
+
+      {% if row.verdict.tjek_hos_maegler %}
+      <p style="margin-bottom:4px;font-size:13px;color:var(--muted)">
+        Tjek hos mægleren
+        <span style="font-size:11px">(Boligsiden udleverer kun 5 billeder)</span>
+      </p>
+      <ul class="flags">{% for f in row.verdict.tjek_hos_maegler %}<li>{{ f }}</li>{% endfor %}</ul>
+      {% if row.case_url %}
+      <p style="margin-top:10px;margin-bottom:0">
+        <a class="btn" href="{{ row.case_url }}" target="_blank" rel="noopener">Se hele annoncen hos mægleren</a>
+      </p>
+      {% endif %}
+      {% endif %}
+
+      <p style="margin-bottom:4px;margin-top:14px;font-size:13px;color:var(--muted)">Hvad teksten går uden om</p>
+      <p style="margin-top:0">{{ row.verdict.text_avoids }}</p>
+
+      <p style="margin-bottom:4px;font-size:13px;color:var(--muted)">Prisvurdering</p>
+      <p style="margin-top:0">{{ row.verdict.price_assessment }}</p>
+
+      <table class="kv">
+        <tr><td>Stand</td><td>{{ row.verdict.renovation_state }}</td></tr>
+        <tr><td>Skøn, istandsættelse</td>
+            <td>{% if row.verdict.renovation_estimate_dkk %}{{ row.verdict.renovation_estimate_dkk|kr }} kr.{% else %}kan ikke vurderes{% endif %}</td></tr>
+        <tr><td>Altan bekræftet</td>
+            <td>{% if row.verdict.balcony_confirmed is none %}uafklaret{% elif row.verdict.balcony_confirmed %}ja{% else %}nej{% endif %}</td></tr>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <h2>Sådan er scoren regnet</h2>
+      {% for f in row.breakdown %}
+      <div class="factor">
+        <div class="head">
+          <span>{{ f.label }} <span class="muted">({{ f.weight|round|int }}%)</span></span>
+          <span class="tabnum">{{ f.score|round|int }}{% if f.neutral %} <span class="muted">neutral</span>{% endif %}</span>
+        </div>
+        <div class="bar"><span style="width: {{ f.score }}%; background: {{
+          '#4ade80' if f.score >= 70 else ('#facc15' if f.score >= 45 else '#f87171') }}"></span></div>
+        <div class="why">{{ f.reason }}</div>
+      </div>
+      {% endfor %}
+      {% if row.bonus %}<p class="muted" style="font-size:13px;margin-bottom:0">Bonus: +{{ row.bonus }} point</p>{% endif %}
+    </div>
+
+    {% if row.sale_history %}
+    <div class="panel">
+      <h2>Salgshistorik for denne bolig</h2>
+      <table class="kv">
+        {% for e in row.sale_history %}
+          {% if e.event_type == 'sold' and e.price %}
+          <tr><td>{{ e.sold_at[:10] }}</td><td>{{ e.price|kr }} kr.</td></tr>
+          {% elif e.event_type == 'built' %}
+          <tr><td>Opført</td><td>{{ e.sold_at[:4] }}</td></tr>
+          {% endif %}
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    {% if row.price_events|length > 1 %}
+    <div class="panel">
+      <h2>Prisudvikling siden vi begyndte at følge den</h2>
+      <table class="kv">
+        {% for e in row.price_events %}
+        <tr><td>{{ e.observed[:10] }}</td><td>{{ e.price|kr }} kr.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Prefer history.back() so the list returns with its filters and scroll intact.
+document.getElementById('backLink').addEventListener('click', e => {
+  if (document.referrer && new URL(document.referrer).host === location.host) {
+    e.preventDefault();
+    history.back();
+  }
+});
+
+const widget = document.getElementById('rate');
+let stars = +widget.dataset.stars || 0;
+
+function paint() {
+  widget.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', stars > 0 && +b.dataset.n <= stars));
+}
+
+widget.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const clicked = +btn.dataset.n;
+  stars = clicked === stars ? 0 : clicked;   // clicking the same star clears it
+  paint();
+});
+
+document.getElementById('saveRating').addEventListener('click', async () => {
+  const res = await fetch('/api/rate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      case_id: widget.dataset.case,
+      stars: stars,
+      note: document.getElementById('note').value
+    })
+  });
+  if ((await res.json()).ok) {
+    const m = document.getElementById('savedMsg');
+    m.style.opacity = 1;
+    setTimeout(() => { m.style.opacity = 0; }, 1500);
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Frafiltrerede boliger{% endblock %}
+
+{% block head %}
+<style>
+table.list { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.list th { text-align: left; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); padding: 8px 10px;
+  border-bottom: 1px solid var(--line); font-weight: 600; }
+table.list td { padding: 7px 10px; border-bottom: 1px solid var(--line); }
+table.list td.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.list tr:hover { background: var(--panel-2); }
+.summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.summary div { background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 16px; }
+.summary b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.panel { background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 4px 6px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<p class="muted" style="margin-top:0">
+  Disse boliger er udbudt i prisintervallet, men falder på et af de hårde krav.
+  De scores ikke og udløser ingen beskeder. Siden findes så et forkert filter kan opdages,
+  ikke fordi listen skal læses igennem.
+</p>
+
+<div class="summary">
+  {% for reason, count in grouped.items() %}
+  <div><b>{{ count }}</b>{{ reason }}</div>
+  {% endfor %}
+</div>
+
+<div class="panel">
+<table class="list">
+  <thead>
+    <tr>
+      <th>Adresse</th><th>Postnr.</th><th class="n">Pris</th>
+      <th class="n">m2</th><th>Etage</th><th>Årsag</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.address }}</td>
+      <td>{{ r.zip_code or '' }}</td>
+      <td class="n">{{ r.price|kr }}</td>
+      <td class="n">{{ r.living_area|kr }}</td>
+      <td>{{ r.floor or '' }}</td>
+      <td class="muted">{{ r.exclusion_reason }}</td>
+      <td>{% if r.boligsiden_url %}<a href="{{ r.boligsiden_url }}" target="_blank" rel="noopener">Åbn</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

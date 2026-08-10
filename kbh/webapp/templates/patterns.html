@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Mønstre i dine bedømmelser{% endblock %}
+
+{% block headerstats %}
+<div class="stats">
+  <span><b>{{ report.total_rated }}</b> bedømt</span>
+  <span><b>{{ report.n_liked }}</b> kan lide</span>
+  <span><b>{{ report.n_disliked }}</b> kan ikke</span>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+.panel { background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; }
+.panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+.note { background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: 9px; padding: 12px 14px; font-size: 14px; margin-bottom: 16px; }
+
+.bars { display: grid; gap: 12px; }
+.bar .top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+.bar .track { display: flex; height: 22px; border-radius: 6px; overflow: hidden;
+  background: var(--panel-2); font-size: 11px; }
+.bar .track div { display: flex; align-items: center; padding: 0 7px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar .lo { background: color-mix(in srgb, var(--bad) 55%, transparent); }
+.bar .hi { background: color-mix(in srgb, var(--good) 55%, transparent); justify-content: flex-end; }
+
+table.kv { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.kv td, table.kv th { padding: 7px 0; border-bottom: 1px solid var(--line); text-align: left; }
+table.kv td.n, table.kv th.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.kv th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+.summary { font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+.comment { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; margin-bottom: 12px; }
+.comment .head { font-size: 13px; color: var(--muted); }
+.comment .stars { color: var(--accent); font-weight: 700; }
+.comment .body { font-size: 14px; }
+.comment.good { border-left-color: var(--good); }
+.comment.bad { border-left-color: var(--bad); }
+.btn { display: inline-block; padding: 8px 15px; border-radius: 8px;
+  border: 1px solid var(--accent); color: var(--accent); text-decoration: none; font-size: 14px; }
+.btn:hover { background: var(--accent); color: var(--bg); }
+.agree { font-size: 34px; font-weight: 750; font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
+
+{% block body %}
+
+{% if report.notes %}
+{% for n in report.notes %}<div class="note">{{ n }}</div>{% endfor %}
+{% endif %}
+
+{% if report.total_rated == 0 %}
+<div class="panel">
+  <p style="margin-top:0">Du har ikke bedømt nogen boliger endnu. Mønstrene kommer af
+  dine egne stjerner og kommentarer, så der er intet at regne på før du er i gang.</p>
+  <a class="btn" href="/bedoem">Begynd at bedømme</a>
+</div>
+{% endif %}
+
+{% if report.comments %}
+<div class="panel">
+  <h2>Hvad dine kommentarer siger</h2>
+  {% if report.ai_summary %}
+  <div class="summary">{{ report.ai_summary }}</div>
+  {% else %}
+  <p class="muted" style="margin-top:0">
+    Claude kan læse dine {{ report.comments|length }} kommentarer og sige hvad de har til fælles.
+  </p>
+  <a class="btn" href="/moenstre?ai=1">Analysér kommentarerne</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if report.enough_data %}
+
+<div class="panel">
+  <h2>Hvad der adskiller dem du kan lide fra dem du ikke kan</h2>
+  <p class="muted" style="margin-top:-6px;font-size:13px">
+    Gennemsnit blandt {{ report.n_liked }} boliger med 4 til 5 stjerner mod
+    {{ report.n_disliked }} med 1 til 2. Sorteret efter hvor meget de adskiller sig.
+  </p>
+  <div class="bars">
+    {% for f in report.findings[:12] %}
+    <div class="bar">
+      <div class="top">
+        <span>{{ f.label }}</span>
+        <span class="muted">{{ '%+.0f'|format(f.gap) }}{{ f.unit }}</span>
+      </div>
+      <div class="track">
+        <div class="lo" style="width: {{ 50 }}%">{{ '{:,.0f}'.format(f.disliked)|replace(',', '.') }}{{ f.unit }}</div>
+        <div class="hi" style="width: {{ 50 }}%">{{ '{:,.0f}'.format(f.liked)|replace(',', '.') }}{{ f.unit }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="muted" style="font-size:12px;margin-bottom:0">
+    Rød er gennemsnittet blandt dem du ikke kan lide, grøn blandt dem du kan.
+  </p>
+</div>
+
+{% if report.neighbourhoods %}
+<div class="panel">
+  <h2>Kvarterer, rangeret efter dine egne stjerner</h2>
+  <table class="kv">
+    <tr><th>Kvarter</th><th class="n">Bedømt</th><th class="n">Snit</th></tr>
+    {% for h in report.neighbourhoods %}
+    <tr><td>{{ h.name }}</td><td class="n">{{ h.n }}</td><td class="n">{{ h.avg }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="muted" style="font-size:12px;margin-bottom:0">
+    Kun kvarterer med mindst 3 bedømmelser. Sammenlign med rækkefølgen i config.py.
+  </p>
+</div>
+{% endif %}
+
+{% if report.agreement is not none %}
+<div class="panel">
+  <h2>Er scoren enig med dig?</h2>
+  <p class="agree">{{ report.agreement }}</p>
+  <p style="margin-top:0">
+    {% if report.agreement > 0.5 %}
+      Scoren rammer nogenlunde det du selv vælger.
+    {% elif report.agreement > 0.2 %}
+      Scoren peger den rigtige vej, men den er ikke stærk. Se de foreslåede vægte nedenfor.
+    {% elif report.agreement > -0.2 %}
+      Scoren og dine stjerner har stort set intet med hinanden at gøre. Vægtene bør laves om.
+    {% else %}
+      Scoren rangerer nærmest modsat dig. Noget er grundlæggende forkert vægtet.
+    {% endif %}
+    Tallet går fra minus 1 til 1 og måler om de boliger scoren sætter højest også er dem du giver flest stjerner.
+  </p>
+</div>
+{% endif %}
+
+{% if report.suggested_weights %}
+<div class="panel">
+  <h2>Vægte, hvis de fulgte dine bedømmelser</h2>
+  <table class="kv">
+    <tr><th>Faktor</th><th class="n">Nu</th><th class="n">Forslag</th></tr>
+    {% for key, label in labels.items() %}
+    <tr>
+      <td>{{ label }}</td>
+      <td class="n">{{ weights[key] }}</td>
+      <td class="n">{{ report.suggested_weights.get(key, weights[key]) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="muted" style="font-size:12px;margin-bottom:10px">
+    Et forslag, ikke andet. Intet ændres automatisk: en håndfuld bedømmelser skal ikke
+    have lov at skrive modellen om bag om ryggen på dig.
+  </p>
+  <button class="btn" id="applySuggested" style="cursor:pointer;background:none;font:inherit">
+    Brug de foreslåede vægte
+  </button>
+  <span id="appliedMsg" class="muted" style="font-size:13px;opacity:0;transition:opacity .2s">
+    Gemt som din tilpassede vægtning
+  </span>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% if report.comments %}
+<div class="panel">
+  <h2>Dine kommentarer</h2>
+  {% for c in report.comments %}
+  <div class="comment {{ 'good' if c.stars >= 4 else ('bad' if c.stars <= 2 else '') }}">
+    <div class="head">
+      <span class="stars">{{ '*' * c.stars }}</span>
+      {{ c.address }} &middot; {{ c.neighbourhood }}
+    </div>
+    <div class="body">{{ c.note }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if rated %}
+<div class="panel">
+  <h2>Alt du har bedømt</h2>
+  <table class="kv">
+    <tr><th>Stjerner</th><th>Adresse</th><th>Kvarter</th><th class="n">Pris</th><th class="n">Score</th></tr>
+    {% for r in rated %}
+    <tr>
+      <td style="color:var(--accent);font-weight:600">{{ '*' * r.stars }}</td>
+      <td><a href="/bolig/{{ r.case_id }}" style="text-decoration:none">{{ r.address }}</a></td>
+      <td class="muted">{{ r.neighbourhood }}</td>
+      <td class="n">{{ r.price|kr }}</td>
+      <td class="n">{{ (r.score or 0)|round|int }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if report.suggested_weights %}
+<script>
+document.getElementById('applySuggested').addEventListener('click', async () => {
+  const res = await fetch('/api/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      profile: 'custom',
+      weights: {{ report.suggested_weights|tojson }}
+    })
+  });
+  if ((await res.json()).ok) {
+    document.getElementById('appliedMsg').style.opacity = 1;
+    setTimeout(() => window.location.reload(), 900);
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,71 @@
+# Copenhagen apartment monitor on ai-vaerksted.cloud.
+#
+# Paste both services into /root/docker-compose.yml on the VPS, alongside
+# ai-vaerksted-wedding-shopping and the rest.
+#
+# Two containers from one image. The web UI serves, the cron container runs the
+# daily pipeline, and they share a named volume because the SQLite file is the
+# only thing between them.
+#
+# Routed on its own subdomain rather than a path prefix. That is not a
+# preference: the templates use root relative links throughout (href="/bolig/..",
+# fetch('/api/rate')) and contain no url_for at all, so serving under
+# /kbh would break every link and every API call on the page. A subdomain costs
+# one DNS record and no code.
+
+services:
+  ai-vaerksted-kbh:
+    build:
+      context: /opt/ai-vaerksted/Danish-Housing-Market-Search
+      dockerfile: kbh/Dockerfile
+    image: ai-vaerksted-kbh:latest
+    container_name: ai-vaerksted-kbh
+    restart: unless-stopped
+    networks:
+      - default
+    volumes:
+      - kbh-data:/data
+    environment:
+      TZ: Europe/Copenhagen
+      KBH_DB_PATH: /data/kbh.sqlite3
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kbh.rule=Host(`boliger.ai-vaerksted.cloud`)
+      - traefik.http.routers.kbh.entrypoints=websecure
+      - traefik.http.routers.kbh.tls.certresolver=mytlschallenge
+      - traefik.http.services.kbh.loadbalancer.server.port=8000
+      # The app has no authentication of any kind, and the pages carry private
+      # ratings and notes. Basic auth is the minimum that should ever face the
+      # public internet. Generate the hash with:
+      #   htpasswd -nbB mark 'your-password' | sed -e 's/\$/\$\$/g'
+      # The doubled dollars are required: compose eats single ones.
+      - traefik.http.routers.kbh.middlewares=kbh-auth
+      - traefik.http.middlewares.kbh-auth.basicauth.users=${KBH_BASIC_AUTH}
+
+  ai-vaerksted-kbh-cron:
+    build:
+      context: /opt/ai-vaerksted/Danish-Housing-Market-Search
+      dockerfile: kbh/Dockerfile
+    image: ai-vaerksted-kbh:latest
+    container_name: ai-vaerksted-kbh-cron
+    restart: unless-stopped
+    networks:
+      - default
+    volumes:
+      - kbh-data:/data
+    environment:
+      TZ: Europe/Copenhagen
+      KBH_DB_PATH: /data/kbh.sqlite3
+      KBH_CRON_SCHEDULE: "0 7 * * *"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      # Off by default on the VPS. The verdicts shell out to the claude CLI,
+      # which is not installed or authenticated in this image. See DEPLOY_VPS.md
+      # before turning this on: it is the one part of the system that does not
+      # move to a server for free.
+      KBH_AI_ENABLED: "0"
+    entrypoint: ["/bin/sh", "/app/kbh/deploy/cron-entrypoint.sh"]
+    # No traefik labels. This container serves nothing.
+
+volumes:
+  kbh-data:

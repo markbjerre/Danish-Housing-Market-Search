@@ -507,27 +507,100 @@ so it is not mocked.
 
 ## Scheduling
 
-Daily fetch plus a morning digest. On Windows:
+One task, every morning at 07:00: fetch, score, read anything new or repriced,
+send instant alerts, then send the digest.
+
+It is a single task rather than a separate fetch and digest, because two tasks
+race: the digest fires while the run is still fetching and summarises
+yesterday's board.
+
+### What is registered
 
 ```powershell
-$py = "C:\Users\MarkBjerregaard\Documents\Private\Housing Project\.venv\Scripts\python.exe"
-$dir = "C:\Users\MarkBjerregaard\Documents\Private\Housing Project"
-
-schtasks /create /tn "KBH boliger fetch" /sc hourly /mo 4 `
-  /tr "cmd /c cd /d `"$dir`" && `"$py`" -m kbh.pipeline run"
-
-schtasks /create /tn "KBH boliger digest" /sc daily /st 08:00 `
-  /tr "cmd /c cd /d `"$dir`" && `"$py`" -m kbh.pipeline digest"
+Get-ScheduledTaskInfo -TaskName "KBH boliger morgen"
 ```
 
-On the VPS, as cron:
+Everything goes through `kbh/scripts/daily_update.ps1`, not straight at the
+module. A scheduled run has no console and nobody watching it, so a failure
+that prints to stderr and dies looks exactly like a quiet market. The wrapper
+logs every line to `kbh/data/logs/kbh-YYYY-MM-DD.log` and keeps a month.
+
+Exit codes: 0 fine, 1 the run failed, 2 the run worked but the digest did not.
+The digest is deliberately non-fatal, because fresh data with no summary beats
+neither.
+
+To register it on another machine:
+
+```powershell
+$script = "C:\Users\MarkBjerregaard\Documents\Private\Housing Project\kbh\scripts\daily_update.ps1"
+$action = New-ScheduledTaskAction -Execute "powershell.exe" `
+  -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$script`""
+$trigger = New-ScheduledTaskTrigger -Daily -At 07:00
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+  -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries `
+  -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+Register-ScheduledTask -TaskName "KBH boliger morgen" -Action $action `
+  -Trigger $trigger -Settings $settings -Force
+```
+
+Use the `ScheduledTasks` cmdlets, not `schtasks /create`. The project path
+contains a space and `schtasks` mangles the quoting of `/tr` around it.
+
+**`-StartWhenAvailable` matters on a laptop.** The machine is usually asleep at
+07:00. Without it a missed trigger is simply skipped and the first anyone knows
+is stale data; with it the run happens when the lid next opens.
+
+### Never route it through cmd.exe
+
+The obvious `schtasks /tr "cmd /c cd /d ... && python -m kbh.pipeline run"` is
+wrong, and it fails in the worst possible way. The AI verdicts shell out to the
+`claude` CLI, and `shutil.which("claude")` returns `claude.CMD`, an npm shim.
+**A `cmd.exe` started from a process with no console never hands off to its
+child**, so the shim sits there and the CLI never starts. Nothing errors. The
+run hangs until the two hour limit kills it.
+
+`ai.py` resolves the shim to the real `.exe` for exactly this reason. Do not
+simplify that away, and do not add a `cmd /c` wrapper back.
+
+Verified by running the registered task under the real scheduler with the model
+enabled, not by assuming.
+
+### On the VPS
 
 ```cron
-0 */4 * * * cd /root/housing && .venv/bin/python -m kbh.pipeline run
-0 8 * * *   cd /root/housing && .venv/bin/python -m kbh.pipeline digest
+0 7 * * * cd /root/housing && .venv/bin/python -m kbh.pipeline run >> /var/log/kbh.log 2>&1
 ```
 
-Runs are idempotent. Running twice in a row changes nothing but `last_seen`.
+No shim problem on Linux. The `claude` CLI has to be installed and
+authenticated as the user cron runs as, or set `KBH_AI_ENABLED=0` and accept
+numbers without verdicts.
+
+### Checking it worked
+
+```powershell
+Get-ScheduledTaskInfo -TaskName "KBH boliger morgen"   # LastTaskResult 0 is good
+Get-Content "kbh\data\logs\kbh-$(Get-Date -Format 'yyyy-MM-dd').log" -Tail 30
+```
+
+Or from the data itself, which is the answer that cannot lie:
+
+```bash
+python -c "import sqlite3;c=sqlite3.connect('kbh/data/kbh.sqlite3');print(c.execute('select started_at,finished_at,seen,new_listings,price_drops,delisted from runs order by id desc limit 3').fetchall())"
+```
+
+Runs are idempotent. Running twice in a row changes nothing but `last_seen`,
+and verdicts already stored are never re-requested, so a manual run after a
+scheduled one costs nothing.
+
+### Running it by hand
+
+```powershell
+# The real thing
+.\kbh\scripts\daily_update.ps1
+
+# Plumbing only. No model calls, no Telegram, no cost.
+.\kbh\scripts\daily_update.ps1 -NoAi -NoAlerts
+```
 
 ## Environment
 

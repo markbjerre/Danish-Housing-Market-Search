@@ -42,13 +42,19 @@ _M_PER_DEG_LON = 111_320.0 * math.cos(math.radians(_LAT0))
 # Bounding box for the OSM pull: south, west, north, east.
 OSM_BBOX: Tuple[float, float, float, float] = (55.58, 12.44, 55.78, 12.70)
 
-# The main Overpass instance times out on this query often enough to be
-# unreliable. Mirrors are tried in order.
+# Overpass mirrors, tried in order. Every one of them fails often enough that
+# a single URL is not usable.
+#
+# Two traps are baked into this list. ``overpass.private.coffee`` no longer
+# resolves at all and has been removed. ``overpass.osm.ch`` is worse than down:
+# it answers 200 with an empty ``elements`` array instead of an error, so a
+# caller that only checks the status code caches an empty file and concludes
+# Copenhagen has no railway stations. Every fetch here therefore treats an
+# empty result as a failure and moves to the next mirror.
 OVERPASS_URLS: Tuple[str, ...] = (
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
-    "https://overpass.osm.ch/api/interpreter",
     "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.osm.ch/api/interpreter",
 )
 
 PRIME_LAKE_NAMES = {
@@ -148,6 +154,57 @@ def _mostly_inside(
     return inside / len(coords) >= threshold
 
 
+def bbox_string() -> str:
+    south, west, north, east = OSM_BBOX
+    return f"{south},{west},{north},{east}"
+
+
+def _overpass(query: str, label: str, attempts: int = 2) -> List[dict]:
+    """Run an Overpass query against the mirrors until one answers usefully.
+
+    An empty ``elements`` array counts as a failure, not as an answer. See the
+    note on OVERPASS_URLS. The whole rotation is retried ``attempts`` times,
+    because a 504 from every mirror is usually a busy minute rather than a
+    permanent condition.
+    """
+    errors: List[str] = []
+    for attempt in range(1, attempts + 1):
+        for url in OVERPASS_URLS:
+            logger.info(
+                "Fetching %s geometry from %s (attempt %s)", label, url, attempt
+            )
+            try:
+                response = requests.post(
+                    url,
+                    data={"data": query},
+                    headers={"User-Agent": "kbh-apartment-monitor/1.0"},
+                    timeout=300,
+                )
+                response.raise_for_status()
+                elements = response.json().get("elements", [])
+                if elements:
+                    return elements
+                errors.append(f"{url}: 200 but no elements")
+            except Exception as exc:
+                errors.append(f"{url}: {exc}")
+                continue
+    raise RuntimeError(
+        f"every Overpass mirror failed for {label}: " + "; ".join(errors[-6:])
+    )
+
+
+def _way_coords(element: dict) -> List[List[float]]:
+    """Longitude and latitude pairs for a way or a relation."""
+    coords: List[List[float]] = []
+    if element.get("type") == "way" and element.get("geometry"):
+        coords = [[p["lon"], p["lat"]] for p in element["geometry"]]
+    elif element.get("type") == "relation":
+        for member in element.get("members", []):
+            if member.get("geometry"):
+                coords.extend([p["lon"], p["lat"]] for p in member["geometry"])
+    return coords
+
+
 def fetch_water(force: bool = False) -> Path:
     """Download and cache Copenhagen water geometry from OpenStreetMap.
 
@@ -157,42 +214,14 @@ def fetch_water(force: bool = False) -> Path:
     if config.WATER_GEOJSON.exists() and not force:
         return config.WATER_GEOJSON
 
-    south, west, north, east = OSM_BBOX
-    query = OVERPASS_QUERY.format(bbox=f"{south},{west},{north},{east}")
-
-    elements: List[dict] = []
-    errors: List[str] = []
-    for url in OVERPASS_URLS:
-        logger.info("Fetching Copenhagen water geometry from %s", url)
-        try:
-            response = requests.post(
-                url,
-                data={"data": query},
-                headers={"User-Agent": "kbh-apartment-monitor/1.0"},
-                timeout=300,
-            )
-            response.raise_for_status()
-            elements = response.json().get("elements", [])
-            if elements:
-                break
-        except Exception as exc:
-            errors.append(f"{url}: {exc}")
-            continue
-
-    if not elements:
-        raise RuntimeError("every Overpass mirror failed: " + "; ".join(errors))
+    query = OVERPASS_QUERY.format(bbox=bbox_string())
+    elements = _overpass(query, "water")
 
     features: List[dict] = []
     for element in elements:
         tags = element.get("tags") or {}
 
-        coords: List[List[float]] = []
-        if element.get("type") == "way" and element.get("geometry"):
-            coords = [[p["lon"], p["lat"]] for p in element["geometry"]]
-        elif element.get("type") == "relation":
-            for member in element.get("members", []):
-                if member.get("geometry"):
-                    coords.extend([p["lon"], p["lat"]] for p in member["geometry"])
+        coords = _way_coords(element)
         if len(coords) < 2:
             continue
 
@@ -297,6 +326,352 @@ class WaterIndex:
             if best is None or distance < best.distance_m:
                 best = hit
         return best
+
+
+# --------------------------------------------------------------------------
+# Transit
+#
+# Metro and S-tog platforms. Both are nodes rather than ways, so this is a
+# nearest point lookup rather than a nearest geometry one.
+#
+# The classification is not obvious. OSM Denmark tags the Copenhagen Metro as
+# ``station=subway``, which is what you would expect, but it tags the S-tog as
+# ``station=light_rail``, which is not: an S-tog is a heavy suburban rail
+# system and nothing like a tram. Anything left over (Hovedbanegården,
+# Nørreport, Østerport and the regional stops) carries no ``station`` tag at
+# all. All three are real rail service and all three count.
+# --------------------------------------------------------------------------
+
+TRANSIT_QUERY = """
+[out:json][timeout:180];
+(
+  node["railway"="station"]({bbox});
+  node["railway"="halt"]({bbox});
+);
+out;
+"""
+
+TRANSIT_KINDS: Dict[str, str] = {
+    "subway": "metro",
+    "light_rail": "s-tog",
+    "train": "regionaltog",
+}
+
+
+def _transit_kind(tags: Dict[str, str]) -> str:
+    station = tags.get("station", "")
+    if station in TRANSIT_KINDS:
+        return TRANSIT_KINDS[station]
+    network = (tags.get("network") or "").lower()
+    if "s-tog" in network:
+        return "s-tog"
+    if "metro" in network:
+        return "metro"
+    return "regionaltog"
+
+
+def fetch_transit(force: bool = False) -> Path:
+    """Download and cache metro, S-tog and regional station positions."""
+    if config.TRANSIT_GEOJSON.exists() and not force:
+        return config.TRANSIT_GEOJSON
+
+    elements = _overpass(TRANSIT_QUERY.format(bbox=bbox_string()), "transit")
+
+    features: List[dict] = []
+    for element in elements:
+        lat, lon = element.get("lat"), element.get("lon")
+        if lat is None or lon is None:
+            continue
+        tags = element.get("tags") or {}
+        # Disused and construction platforms are still tagged as stations, and
+        # a flat is not well served by a station that has not opened or has
+        # closed.
+        if tags.get("disused") or tags.get("construction") or tags.get("abandoned"):
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                "properties": {
+                    "kind": _transit_kind(tags),
+                    "name": tags.get("name", ""),
+                    "osm_id": element.get("id"),
+                },
+            }
+        )
+
+    if not features:
+        raise RuntimeError("Overpass returned no usable station geometry")
+
+    payload = {"type": "FeatureCollection", "features": features}
+    config.TRANSIT_GEOJSON.write_text(json.dumps(payload), encoding="utf-8")
+    counts: Dict[str, int] = {}
+    for feature in features:
+        kind = feature["properties"]["kind"]
+        counts[kind] = counts.get(kind, 0) + 1
+    logger.info(
+        "Cached %s stations to %s: %s", len(features), config.TRANSIT_GEOJSON, counts
+    )
+    return config.TRANSIT_GEOJSON
+
+
+@dataclass
+class TransitHit:
+    distance_m: float
+    name: str
+    kind: str
+
+
+class TransitIndex:
+    """Nearest rail station of any kind."""
+
+    def __init__(self, geojson_path: Path) -> None:
+        raw = json.loads(Path(geojson_path).read_text(encoding="utf-8"))
+        self._geoms: List = []
+        self._meta: List[Tuple[str, str]] = []
+
+        for feature in raw.get("features", []):
+            try:
+                geometry = transform(_to_metres, shape(feature["geometry"]))
+            except Exception:
+                continue
+            if geometry.is_empty:
+                continue
+            self._geoms.append(geometry)
+            props = feature.get("properties", {})
+            self._meta.append((props.get("name") or "", props.get("kind") or "station"))
+
+        self._tree = STRtree(self._geoms) if self._geoms else None
+
+    @property
+    def ready(self) -> bool:
+        return bool(self._geoms)
+
+    def nearest(self, lat: float, lon: float) -> Optional[TransitHit]:
+        if self._tree is None:
+            return None
+        point = Point(*_to_metres(lon, lat))
+        index = self._tree.nearest(point)
+        if index is None:
+            return None
+        name, kind = self._meta[int(index)]
+        distance = float(point.distance(self._geoms[int(index)]))
+        return TransitHit(distance, name or "station", kind)
+
+
+# --------------------------------------------------------------------------
+# Noise
+#
+# Road and rail lines that a home can be too close to. Only the classes that
+# actually carry through traffic are pulled: residential and unclassified
+# streets are the normal condition of living in a city and would add nothing
+# but a constant to every listing.
+#
+# ``railway=rail`` is included because the S-tog and regional lines are a
+# genuine noise source above ground, and because the same line that makes a
+# station convenient makes the flat backing onto it unpleasant. Tunnels and
+# subways are excluded: the Metro is almost entirely underground in the
+# expensive parts of the city and makes no noise there at all.
+# --------------------------------------------------------------------------
+
+NOISE_QUERY = """
+[out:json][timeout:240];
+(
+  way["highway"~"^(motorway|trunk|primary|secondary|tertiary)$"]({bbox});
+  way["railway"="rail"]({bbox});
+);
+out geom;
+"""
+
+
+def _parse_lanes(raw: Optional[str]) -> Optional[float]:
+    """OSM lane counts are free text often enough to need guarding."""
+    if not raw:
+        return None
+    try:
+        return float(str(raw).split(";")[0].strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_maxspeed(raw: Optional[str]) -> Optional[float]:
+    """Speed limits arrive as '50', '50 km/h', 'DK:urban' and worse."""
+    if not raw:
+        return None
+    text = str(raw).strip().lower()
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if digits:
+        try:
+            return float(digits[:3])
+        except ValueError:
+            return None
+    # The implicit Danish defaults, for ways that state a zone instead.
+    return {"dk:urban": 50.0, "dk:rural": 80.0, "dk:motorway": 130.0}.get(text)
+
+
+def _noise_class(tags: Dict[str, str]) -> Optional[str]:
+    """Which noise source class a way belongs to, or None to ignore it."""
+    # Anything in a tunnel or a covered cutting is not heard at street level.
+    if tags.get("tunnel") or tags.get("covered") == "yes":
+        return None
+    if tags.get("railway") == "rail":
+        if tags.get("service") in ("siding", "yard", "spur", "crossover"):
+            return None
+        if tags.get("usage") == "industrial":
+            return None
+        return "railway"
+    highway = tags.get("highway", "")
+    if highway in config.NOISE_HIGHWAY_CLASSES:
+        return highway
+    return None
+
+
+def fetch_noise(force: bool = False) -> Path:
+    """Download and cache the road and rail lines that generate noise.
+
+    The emission weight is computed here and stored on each feature, so the
+    lookup at scoring time is geometry only.
+    """
+    if config.NOISE_GEOJSON.exists() and not force:
+        return config.NOISE_GEOJSON
+
+    elements = _overpass(NOISE_QUERY.format(bbox=bbox_string()), "noise")
+
+    features: List[dict] = []
+    for element in elements:
+        tags = element.get("tags") or {}
+        kind = _noise_class(tags)
+        if kind is None:
+            continue
+        coords = _way_coords(element)
+        if len(coords) < 2:
+            continue
+        weight = config.noise_weight(
+            kind,
+            lanes=_parse_lanes(tags.get("lanes")),
+            maxspeed=_parse_maxspeed(tags.get("maxspeed")),
+        )
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "LineString", "coordinates": coords},
+                "properties": {
+                    "kind": kind,
+                    "name": tags.get("name", ""),
+                    "weight": round(weight, 1),
+                    "osm_id": element.get("id"),
+                },
+            }
+        )
+
+    if not features:
+        raise RuntimeError("Overpass returned no usable noise geometry")
+
+    payload = {"type": "FeatureCollection", "features": features}
+    config.NOISE_GEOJSON.write_text(json.dumps(payload), encoding="utf-8")
+    counts: Dict[str, int] = {}
+    for feature in features:
+        kind = feature["properties"]["kind"]
+        counts[kind] = counts.get(kind, 0) + 1
+    logger.info(
+        "Cached %s noise sources to %s: %s", len(features), config.NOISE_GEOJSON, counts
+    )
+    return config.NOISE_GEOJSON
+
+
+@dataclass
+class NoiseHit:
+    """One noise source affecting an address."""
+
+    kind: str
+    distance_m: float
+    name: str
+    weight: float
+
+    @property
+    def reach_m(self) -> float:
+        return config.noise_reach_m(self.weight)
+
+    @property
+    def penalty(self) -> float:
+        """Points off, decaying linearly to nothing at the source's reach."""
+        reach = self.reach_m
+        if self.distance_m >= reach:
+            return 0.0
+        return self.weight * (1.0 - self.distance_m / reach)
+
+
+class NoiseIndex:
+    """Road and rail noise sources near an address.
+
+    One tree over everything, because the loudness now lives on the feature
+    rather than in its class. The lookup takes every source whose reach covers
+    the point, so a flat between a motorway and a railway is charged for both.
+
+    Results are grouped by street before they are returned. That matters more
+    than it looks: OSM splits Åboulevard into 24 separate ways, and charging a
+    flat once per way would put a quiet address next to a busy road at zero.
+    One street contributes once, at its nearest point.
+    """
+
+    def __init__(self, geojson_path: Path) -> None:
+        raw = json.loads(Path(geojson_path).read_text(encoding="utf-8"))
+        self._geoms: List = []
+        self._meta: List[Tuple[str, str, float]] = []
+
+        for feature in raw.get("features", []):
+            props = feature.get("properties", {})
+            kind = props.get("kind")
+            if kind not in config.NOISE_LABELS:
+                continue
+            try:
+                geometry = transform(_to_metres, shape(feature["geometry"]))
+            except Exception:
+                continue
+            if geometry.is_empty:
+                continue
+            weight = props.get("weight")
+            if weight is None:
+                weight = config.noise_weight(kind)
+            self._geoms.append(geometry)
+            self._meta.append((kind, props.get("name") or "", float(weight)))
+
+        self._tree = STRtree(self._geoms) if self._geoms else None
+        # The furthest any source can be heard, which bounds the query window.
+        self._max_reach = max(
+            (config.noise_reach_m(m[2]) for m in self._meta), default=0.0
+        )
+
+    @property
+    def ready(self) -> bool:
+        return bool(self._geoms)
+
+    def nearby(self, lat: float, lon: float) -> List[NoiseHit]:
+        """Every street and line whose noise reaches this address.
+
+        Sorted loudest first, so the reasoning string names what actually
+        dominates rather than whatever happens to be nearest.
+        """
+        if self._tree is None:
+            return []
+        point = Point(*_to_metres(lon, lat))
+        candidates = self._tree.query(point.buffer(self._max_reach))
+
+        # Nearest way per street, so a road split into many OSM ways counts once.
+        best: Dict[Tuple[str, str], NoiseHit] = {}
+        for index in candidates:
+            kind, name, weight = self._meta[int(index)]
+            distance = float(point.distance(self._geoms[int(index)]))
+            if distance >= config.noise_reach_m(weight):
+                continue
+            # Unnamed segments group by class alone, which is the best that can
+            # be done without a street name to join on.
+            key = (kind, name)
+            current = best.get(key)
+            if current is None or distance < current.distance_m:
+                best[key] = NoiseHit(kind, distance, name, weight)
+
+        return sorted(best.values(), key=lambda h: h.penalty, reverse=True)
 
 
 # --------------------------------------------------------------------------

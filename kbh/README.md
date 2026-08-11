@@ -72,17 +72,20 @@ field that turns out to be wrong (see below).
 
 ## Scoring
 
-Seven weighted factors, each normalised to 0 to 100. Weights live in
+Ten weighted factors, each normalised to 0 to 100. Weights live in
 `config.WEIGHTS` and are validated at import to sum to 100.
 
 | Factor | Weight | What it measures |
 |--------|--------|------------------|
-| Kvadratmeterpris mod sognet | 30 | Asking kr/m² against the local benchmark |
-| Kvarter | 20 | Neighbourhood preference tier |
-| Afstand til vand | 15 | Metres to harbour, canals, the lakes or the coast |
-| Størrelse | 12 | Absolute m², from the 90 m² floor up to 160 |
-| Stand, energi og alder | 10 | Energy label, effective year, BBR fixtures |
-| Forhandlingsposition | 8 | Days listed, price cuts, weak demand |
+| Kvadratmeterpris mod sognet | 27 | Asking kr/m² against the local benchmark |
+| Kvarter | 15 | Neighbourhood preference tier |
+| Størrelse | 10 | Absolute m², from the 90 m² floor up to 160 |
+| Værelser og rumfordeling | 8 | Room count, with a deduction for cupboards |
+| Afstand til metro og S-tog | 8 | Metres to the nearest platform |
+| Stand, energi og alder | 8 | Energy label, effective year, BBR fixtures |
+| Afstand til vand | 7 | Metres to harbour, canals, the lakes or the coast |
+| Vejstøj og banestøj | 6 | Exposure to road and rail noise |
+| Forhandlingsposition | 6 | Days listed, price cuts, weak demand |
 | Ejerudgift | 5 | Monthly cost per m² against the pool median |
 
 Plus a bonus capped at 5 points: balcony 3, terrace 2, lift 1.5.
@@ -92,12 +95,20 @@ Plus a bonus capped at 5 points: balcony 3, terrace 2, lift 1.5.
 The table above is the `Balanceret` profile. Four are built in, switchable from
 the top of the list page, plus a custom one with sliders:
 
-| Profile | Leans on | m² price | Kvarter | Vand | Størrelse |
-|---------|----------|---------:|--------:|-----:|----------:|
-| **Balanceret** (default) | Price and neighbourhood | 32 | 22 | 8 | 15 |
-| **Ved vandet** | The original weighting | 30 | 20 | 15 | 12 |
-| **Værdijæger** | Underpricing and a tired seller | 45 | 12 | 5 | 12 |
-| **Plads for pengene** | Square metres first | 30 | 14 | 5 | 30 |
+| Profile | Leans on | m² price | Kvarter | Vand | Størrelse | Værelser | Tog | Støj |
+|---------|----------|---------:|--------:|-----:|----------:|---------:|----:|-----:|
+| **Balanceret** (default) | Price and neighbourhood | 27 | 15 | 7 | 10 | 8 | 8 | 6 |
+| **Ved vandet** | Harbour, canals and lakes | 26 | 15 | 14 | 9 | 7 | 6 | 5 |
+| **Værdijæger** | Underpricing and a tired seller | 40 | 8 | 4 | 8 | 5 | 5 | 4 |
+| **Plads for pengene** | Square metres and rooms | 26 | 10 | 4 | 22 | 12 | 6 | 5 |
+
+**A saved custom weighting inherits factors added after it was saved.** This is
+not cosmetic. The first run after rooms, transit and noise were added scored
+all 501 listings with those three at weight zero, because the stored custom
+profile had no key for them and normalising treated absent as "slider dragged
+to zero". The pipeline logged it and looked entirely normal doing it. Absent
+now means "never asked" and inherits the default, while an explicit zero from
+the slider form still means off.
 
 **Switching costs nothing and re-evaluates nothing.** Every factor's 0 to 100
 score is already stored per listing, so a profile change is arithmetic on
@@ -160,6 +171,60 @@ inland lakes) is capped at 55.
 Ørestad's drainage canals are demoted to secondary. OSM tags them as canals,
 which would otherwise rank a flat facing a narrow concrete channel between two
 office blocks the same as one on Christianshavns Kanal.
+
+### Transit
+
+Metro, S-tog and regional platforms from OpenStreetMap, cached to
+`kbh/data/transit.geojson`. 106 stations: 44 metro, 53 S-tog, 9 regional.
+
+The classification is not obvious. OSM Denmark tags the Metro as
+`station=subway` as you would expect, but tags the S-tog as
+`station=light_rail`, which is wrong in spirit: an S-tog is heavy suburban rail
+and nothing like a tram. The regional stops carry no `station` tag at all.
+
+The curve starts falling at 250 m, not at a comfortable five minute walk.
+Measured against the real pool, a gentler curve put half of all listings at 98
+or better and separated nothing. Median distance across the pool is 437 m.
+
+### Noise
+
+**Road noise is modelled from lane count and speed limit, not from the OSM
+highway class.** That is forced by how Denmark is tagged, and getting it wrong
+makes the factor worse than useless.
+
+Danish OSM reserves `primary` and `secondary` for the national numbered road
+network. Every major urban artery in Copenhagen is therefore `tertiary`:
+H.C. Andersens Boulevard, Åboulevard, Vesterbrogade, Jagtvej, Tagensvej,
+Amagerbrogade and Østerbrogade are all the same class as a quiet residential
+through street. The first version of this factor was built on highway class
+and scored the busiest road in the country as silent, while a flat on
+Østerbrogade came out at a perfect 100.
+
+Lanes and speed are tagged on 90 pct. and 99 pct. of those ways respectively,
+and they separate the same streets correctly: H.C. Andersens Boulevard runs 3
+to 5 lanes at 50 to 60, while Nørrebrogade runs 1 to 2 lanes at 40 because it
+has been traffic calmed. That difference is real and the class tag cannot see
+it.
+
+Two things the implementation has to get right or the numbers are nonsense:
+
+- **Sources combine in energy, not by addition.** Adding penalties straight up
+  put 123 of 501 listings under 40 and zeroed an ordinary Frederiksberg address
+  that merely had four moderate streets around it, level with a flat on a
+  railway embankment. Sound adds logarithmically and the loudest source
+  dominates, so the penalties are combined the same way.
+- **One street contributes once.** OSM splits Åboulevard into 24 separate ways.
+  Charging a flat once per way puts any address near a busy road at zero, so
+  hits are grouped by street name and only the nearest is counted.
+
+The result reads correctly against addresses you can walk to: the worst in the
+pool are Torvegade, Vester Søgade at Gyldenløvesgade, and Tagensvej 77. Median
+78, with 44 listings genuinely quiet.
+
+This is a proxy for traffic volume, not measured sound. Denmark publishes
+modelled Lden contours under the EU noise directive, which would be strictly
+better; the portal serving them needs a registered account, so it sits in
+`TODO.md` rather than in here.
 
 ### Neighbourhoods
 
@@ -225,6 +290,39 @@ advertisement, shown on the detail page next to a link straight to it.
 One photo observation stays a genuine red flag: images that are 3D renders or
 styled visualisations rather than photographs of the actual home. That is real
 information, because it means the flat is a projektsalg that may not be built.
+
+### The public valuation is a constant, not a signal
+
+The same class of error, found later and fixed the same way. The prompt handed
+the model `OFFENTLIG VURDERING` as a bare number, and the model correctly
+observed that asking prices sat far above it. On the top scoring listing it
+reported a public valuation of 5,4 mio. against an asking price of 9,7 mio. as
+a finding.
+
+It is not a finding. Copenhagen flats are still assessed at the frozen 2011 and
+2012 level, so **the median asking price across the pool is 3,44 times the
+public valuation**, with a tenth percentile of 2,78 and a ninetieth of 4,66.
+Every flat in the city looks individually overpriced by a factor of three,
+which means none of them do. One verdict flagged a "5,7x afvigelse" as critical
+when 5,7 is barely outside the normal range.
+
+Six of 209 verdicts carried it as a red flag. Those six were deleted so they
+get re-read; the rest were unaffected and were left alone.
+
+The prompt now states the listing's own ratio **and** the pool median together,
+and says the number is only worth mentioning when the two differ sharply. The
+median is computed per run in `MarketContext`, so it tracks the market rather
+than being a constant someone has to remember to update.
+
+### Floor plans
+
+`floor_plan_url` is stored for 442 of 1.049 listings and shown on the detail
+page, with a `plan` badge on the list card.
+
+Boligsiden serves images from a whitelist of sizes rather than resizing on
+demand. `600x400` is what the search payload carries and is unreadable for a
+plantegning; `1440x960` is the largest that answers, while `800x600` and
+`1920x1080` both return 403. The detail page swaps the size segment up.
 
 **Why not scrape the realtor?** It was checked rather than assumed. The chains
 are fragmented (nybolig 15, home 10, danbolig 7, edc 5, lokalbolig 5,
@@ -397,7 +495,7 @@ python -m kbh.bot                             # interactive Telegram bot
 python -m kbh.tests
 ```
 
-39 tests, no network and no database. They cover the logic that fails silently:
+70 tests, no network and no database. They cover the logic that fails silently:
 hard filter boundaries, houseboat detection, the shape of every scoring curve,
 the neighbourhood overrides in both directions, the peer benchmark, and the
 batch response parser. That last one matters most, because a batch reply that

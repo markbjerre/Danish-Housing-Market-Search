@@ -15,6 +15,7 @@ Two principles the code sticks to:
 
 from __future__ import annotations
 
+import math
 import statistics
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
@@ -51,6 +52,15 @@ class MarketContext:
     median_days_listed: float = 90.0
     median_expense_per_sqm: float = 45.0
     median_favourites_per_week: float = 4.0
+    # Asking price divided by the public valuation, across the pool.
+    #
+    # This exists to stop a number being read as a signal when it is a
+    # constant. The offentlige ejendomsvurdering on a Copenhagen flat is still
+    # the frozen 2011 and 2012 assessment, so asking prices sit at roughly
+    # three and a half times it for every single home in the city. Handed over
+    # raw, it makes each flat look individually overpriced by a factor of
+    # three. Only the distance from this median means anything.
+    median_price_to_valuation: float = 3.4
 
     @classmethod
     def from_listings(cls, rows: Sequence[Dict[str, Any]]) -> "MarketContext":
@@ -72,10 +82,17 @@ class MarketContext:
             if favs is not None and listed and listed > 0:
                 favourites.append(favs / max(listed / 7.0, 1.0))
 
+        valuation = []
+        for r in rows:
+            price, value = r.get("price"), r.get("latest_valuation")
+            if price and value and value > 0:
+                valuation.append(price / value)
+
         return cls(
             median_days_listed=median_of(days, 90.0),
             median_expense_per_sqm=median_of(expense, 45.0),
             median_favourites_per_week=median_of(favourites, 4.0),
+            median_price_to_valuation=median_of(valuation, 3.4),
         )
 
 
@@ -217,6 +234,119 @@ def score_size(listing: Dict[str, Any]) -> FactorScore:
     rooms = listing.get("number_of_rooms")
     room_note = f", {rooms:.0f} vær." if rooms else ""
     return FactorScore("size", _clamp(score), weight, f"{area:.0f} m2{room_note}")
+
+
+def score_rooms(listing: Dict[str, Any]) -> FactorScore:
+    """Room count, with a deduction when the rooms are cupboards.
+
+    Separate from size on purpose. A 120 m2 three room and a 120 m2 five room
+    are the same number of square metres and different homes, and the size
+    curve cannot tell them apart. Mark's preference is more than three rooms,
+    so the curve turns steeply upwards at four.
+    """
+    weight = config.WEIGHTS["rooms"]
+    rooms = listing.get("number_of_rooms")
+
+    if not rooms or rooms <= 0:
+        return FactorScore("rooms", 50.0, weight, "Værelsestal mangler", neutral=True)
+
+    count = int(round(float(rooms)))
+    if count >= config.ROOM_TOP_COUNT:
+        score = 100.0
+    else:
+        score = config.ROOM_SCORES.get(count, 0.0)
+
+    notes = [f"{count} vær."]
+
+    # A flat chopped into small rooms should not beat a better laid out one on
+    # room count alone. Living area includes the kitchen, the bathroom and the
+    # hallway while the room count does not, so an ordinary Copenhagen flat
+    # sits well clear of the threshold and loses nothing here.
+    area = listing.get("living_area")
+    if area and area > 0 and count > 0:
+        per_room = area / count
+        if per_room < config.ROOM_AREA_TIGHT_M2:
+            shortfall = (
+                config.ROOM_AREA_TIGHT_M2 - per_room
+            ) / config.ROOM_AREA_TIGHT_M2
+            penalty = min(
+                config.ROOM_AREA_PENALTY_MAX,
+                config.ROOM_AREA_PENALTY_MAX * shortfall * 2.0,
+            )
+            score -= penalty
+            notes.append(f"kun {per_room:.0f} m2 pr. værelse")
+        else:
+            notes.append(f"{per_room:.0f} m2 pr. værelse")
+
+    return FactorScore("rooms", _clamp(score), weight, ", ".join(notes))
+
+
+def score_transit(distance_m: Optional[float], name: str, kind: str) -> FactorScore:
+    """Walking distance to the nearest metro, S-tog or regional platform.
+
+    Copenhagen at this price is a rail city, and station distance separates two
+    otherwise identical flats more reliably than most of what a listing text
+    says about itself.
+    """
+    weight = config.WEIGHTS["transit"]
+    if distance_m is None:
+        return FactorScore("transit", 50.0, weight, "Ingen stationsdata", neutral=True)
+
+    if distance_m <= config.TRANSIT_FULL_SCORE_M:
+        score = 100.0
+    elif distance_m >= config.TRANSIT_ZERO_SCORE_M:
+        score = 0.0
+    else:
+        span = config.TRANSIT_ZERO_SCORE_M - config.TRANSIT_FULL_SCORE_M
+        normalised = (distance_m - config.TRANSIT_FULL_SCORE_M) / span
+        # Gentler than the water curve. The difference between 400 m and 800 m
+        # to a station is real but it is not the difference between waterfront
+        # and not waterfront.
+        score = 100.0 * (1.0 - normalised**1.1)
+
+    label = {"metro": "metro", "s-tog": "S-tog", "regionaltog": "station"}.get(
+        kind, "station"
+    )
+    where = f"{name} ({label})" if name else label
+    return FactorScore(
+        "transit", _clamp(score), weight, f"{distance_m:.0f} m til {where}"
+    )
+
+
+def score_noise(hits: Sequence[Any]) -> FactorScore:
+    """Exposure to road and rail noise.
+
+    ``hits`` is whatever ``geo.NoiseIndex.nearby`` returned: every street or
+    line whose noise reaches the address, one entry per street. An empty list
+    means a quiet address, which is a full score rather than a missing one.
+
+    Contributions are combined the way sound actually combines, in energy
+    rather than by addition. Two equally loud roads are about three points
+    worse than one, not twice as bad, and the loudest source dominates the
+    result. Adding the penalties straight up was tried first and was clearly
+    wrong: an ordinary Frederiksberg address with four moderate streets around
+    it came out at zero, level with a flat on the railway embankment.
+    """
+    weight = config.WEIGHTS["noise"]
+    if hits is None:
+        return FactorScore("noise", 50.0, weight, "Ingen vejdata", neutral=True)
+
+    energy = 0.0
+    notes: List[str] = []
+    for hit in hits:
+        contribution = hit.penalty
+        if contribution <= 0:
+            continue
+        energy += 10.0 ** (contribution / 10.0)
+        label = config.NOISE_LABELS.get(hit.kind, hit.kind)
+        where = f"{hit.name} ({label})" if hit.name else label
+        notes.append(f"{hit.distance_m:.0f} m til {where}")
+
+    penalty = 10.0 * math.log10(energy) if energy > 0 else 0.0
+    score = _clamp(100.0 - penalty)
+    if not notes:
+        return FactorScore("noise", score, weight, "Ingen større vej eller bane tæt på")
+    return FactorScore("noise", score, weight, "; ".join(notes[:3]))
 
 
 def score_condition(listing: Dict[str, Any]) -> FactorScore:
@@ -440,18 +570,30 @@ def score_listing(
     water_kind: str,
     market: MarketContext,
     weights: Optional[Dict[str, float]] = None,
+    transit_distance: Optional[float] = None,
+    transit_name: str = "",
+    transit_kind: str = "",
+    noise_hits: Optional[Sequence[Any]] = None,
 ) -> ScoreResult:
     """Run every factor and assemble the weighted total.
 
     ``weights`` overrides the configured profile. The individual factor scores
     do not depend on it, which is what lets the web app re-rank the whole pool
     under a different profile without recomputing anything.
+
+    ``noise_hits`` distinguishes two cases that must not be confused. ``None``
+    means the noise geometry was unavailable, which scores an explicit neutral.
+    An empty list means the geometry was consulted and found nothing near the
+    address, which is a quiet home and scores full marks.
     """
     factors = [
         score_sqm_price(listing, benchmark, basis),
         score_neighbourhood(neighbourhood, tier, neighbourhood_source),
         score_water(water_distance, water_name, water_kind),
         score_size(listing),
+        score_rooms(listing),
+        score_transit(transit_distance, transit_name, transit_kind),
+        score_noise(noise_hits),
         score_condition(listing),
         score_negotiation(listing, market),
         score_expense(listing, market),
@@ -497,6 +639,12 @@ def score_listing(
     price = listing.get("price") or 0
     ratio = (price / area / benchmark) if (area and price and benchmark) else None
 
+    valuation = listing.get("latest_valuation")
+    price_now = listing.get("price")
+    valuation_ratio = (
+        (price_now / valuation) if (price_now and valuation and valuation > 0) else None
+    )
+
     meta = {
         "neighbourhood": neighbourhood,
         "neighbourhood_tier": tier,
@@ -508,6 +656,26 @@ def score_listing(
         else None,
         "water_name": water_name,
         "water_kind": water_kind,
+        "transit_distance_m": round(transit_distance, 1)
+        if transit_distance is not None
+        else None,
+        "transit_name": transit_name,
+        "transit_kind": transit_kind,
+        "noise_sources": [
+            {
+                "kind": h.kind,
+                "name": h.name,
+                "distance_m": round(h.distance_m, 1),
+                "penalty": round(h.penalty, 1),
+            }
+            for h in (noise_hits or [])
+            if h.penalty > 0
+        ][:4],
+        # Carried so the AI prompt can state the gap to the public valuation
+        # relative to the pool instead of as a bare number. See the note on
+        # MarketContext.median_price_to_valuation.
+        "valuation_ratio": round(valuation_ratio, 2) if valuation_ratio else None,
+        "valuation_ratio_median": round(market.median_price_to_valuation, 2),
         "bonus_notes": bonus_notes,
     }
     return ScoreResult(total=total, bonus=bonus, factors=factors, meta=meta)

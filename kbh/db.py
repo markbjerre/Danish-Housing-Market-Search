@@ -120,7 +120,12 @@ CREATE TABLE IF NOT EXISTS scores (
     sqm_price_ratio    REAL,
     water_distance_m   REAL,
     water_name         TEXT,
-    water_kind         TEXT
+    water_kind         TEXT,
+    transit_distance_m REAL,
+    transit_name       TEXT,
+    transit_kind       TEXT,
+    noise_sources      TEXT,
+    valuation_ratio    REAL
 );
 
 CREATE TABLE IF NOT EXISTS ai_verdicts (
@@ -274,6 +279,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "scores": [
             ("benchmark_source", "TEXT"),
             ("headline", "TEXT"),
+            ("transit_distance_m", "REAL"),
+            ("transit_name", "TEXT"),
+            ("transit_kind", "TEXT"),
+            ("noise_sources", "TEXT"),
+            ("valuation_ratio", "REAL"),
         ],
     }
     for table, columns in wanted.items():
@@ -411,7 +421,8 @@ def save_score(conn: sqlite3.Connection, case_id: str, result: Dict[str, Any]) -
         "INSERT OR REPLACE INTO scores (case_id, scored_at, total, bonus, breakdown, "
         "neighbourhood, neighbourhood_tier, parish, parish_sqm_price, benchmark_basis, "
         "benchmark_source, headline, sqm_price_ratio, water_distance_m, water_name, "
-        "water_kind) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "water_kind, transit_distance_m, transit_name, transit_kind, noise_sources, "
+        "valuation_ratio) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             case_id,
             now_iso(),
@@ -429,6 +440,11 @@ def save_score(conn: sqlite3.Connection, case_id: str, result: Dict[str, Any]) -
             result.get("water_distance_m"),
             result.get("water_name"),
             result.get("water_kind"),
+            result.get("transit_distance_m"),
+            result.get("transit_name"),
+            result.get("transit_kind"),
+            json.dumps(result.get("noise_sources") or [], ensure_ascii=False),
+            result.get("valuation_ratio"),
         ),
     )
 
@@ -590,7 +606,9 @@ def active_weights(conn: sqlite3.Connection) -> Tuple[str, Dict[str, float]]:
     if key == "custom":
         custom = get_pref(conn, "custom_weights")
         if custom:
-            return "custom", config.normalise_weights(custom)
+            # A weighting saved before a factor existed must inherit the
+            # default for it rather than switch it off. See normalise_weights.
+            return "custom", config.normalise_weights(custom, fill_missing=True)
         key = config.DEFAULT_PROFILE
     if key not in config.PROFILES:
         key = config.DEFAULT_PROFILE

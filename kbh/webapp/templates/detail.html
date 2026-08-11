@@ -79,6 +79,23 @@ textarea.note {
     </div>
     {% endif %}
 
+    {% if row.floor_plan_url %}
+    {# Boligsiden serves images from a whitelist of sizes. 1440x960 is the
+       largest that answers; 800x600 and 1920x1080 both 403. The 600x400 stored
+       on the row is unreadable for a plantegning, so it is swapped up here. #}
+    <div class="panel" style="margin-top:14px">
+      <h2>Plantegning</h2>
+      <a href="{{ row.floor_plan_url|replace('/600x400/', '/1440x960/') }}" target="_blank" rel="noopener">
+        <img src="{{ row.floor_plan_url|replace('/600x400/', '/1440x960/') }}"
+             alt="Plantegning for {{ row.address }}"
+             style="width:100%;background:#fff;border-radius:7px;display:block">
+      </a>
+      <p class="muted" style="font-size:12px;margin-bottom:0;margin-top:8px">
+        Klik for fuld størrelse. Mæglerens egen annonce har ofte flere plantegninger.
+      </p>
+    </div>
+    {% endif %}
+
     <div class="panel" style="margin-top:14px">
       <h2>Mæglerens beskrivelse</h2>
       <p style="font-weight:600;margin-top:0">{{ row.description_title }}</p>

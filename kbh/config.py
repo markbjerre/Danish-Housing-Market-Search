@@ -32,6 +32,8 @@ except ImportError:  # pragma: no cover
 DB_PATH: Path = Path(os.environ.get("KBH_DB_PATH", DATA_DIR / "kbh.sqlite3"))
 WATER_GEOJSON: Path = DATA_DIR / "water.geojson"
 PARISH_GEOJSON: Path = DATA_DIR / "parishes.geojson"
+TRANSIT_GEOJSON: Path = DATA_DIR / "transit.geojson"
+NOISE_GEOJSON: Path = DATA_DIR / "noise.geojson"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -188,6 +190,9 @@ FACTOR_KEYS: Tuple[str, ...] = (
     "neighbourhood",
     "water",
     "size",
+    "rooms",
+    "transit",
+    "noise",
     "condition",
     "negotiation_leverage",
     "monthly_expense",
@@ -202,30 +207,36 @@ FACTOR_KEYS: Tuple[str, ...] = (
 PROFILES: Dict[str, Dict[str, Any]] = {
     "balanceret": {
         "name": "Balanceret",
-        "note": "Kvadratmeterpris og kvarter vejer tungest. Vand tæller med, "
-        "men afgør ikke længere feltet.",
+        "note": "Kvadratmeterpris og kvarter vejer tungest. Vand, metro og "
+        "vejstøj tæller med, men afgør ikke feltet alene.",
         "weights": {
-            "sqm_price_vs_benchmark": 32.0,
-            "neighbourhood": 22.0,
-            "water": 8.0,
-            "size": 15.0,
-            "condition": 11.0,
-            "negotiation_leverage": 7.0,
+            "sqm_price_vs_benchmark": 27.0,
+            "neighbourhood": 15.0,
+            "water": 7.0,
+            "size": 10.0,
+            "rooms": 8.0,
+            "transit": 8.0,
+            "noise": 6.0,
+            "condition": 8.0,
+            "negotiation_leverage": 6.0,
             "monthly_expense": 5.0,
         },
     },
     "ved_vandet": {
         "name": "Ved vandet",
-        "note": "Den oprindelige vægtning. Nærhed til havn, kanaler og søer "
-        "vejer tungt nok til at flytte en bolig flere pladser op.",
+        "note": "Nærhed til havn, kanaler og søer vejer tungt nok til at "
+        "flytte en bolig flere pladser op.",
         "weights": {
-            "sqm_price_vs_benchmark": 30.0,
-            "neighbourhood": 20.0,
-            "water": 15.0,
-            "size": 12.0,
-            "condition": 10.0,
-            "negotiation_leverage": 8.0,
-            "monthly_expense": 5.0,
+            "sqm_price_vs_benchmark": 26.0,
+            "neighbourhood": 15.0,
+            "water": 14.0,
+            "size": 9.0,
+            "rooms": 7.0,
+            "transit": 6.0,
+            "noise": 5.0,
+            "condition": 8.0,
+            "negotiation_leverage": 6.0,
+            "monthly_expense": 4.0,
         },
     },
     "vaerdijaeger": {
@@ -233,27 +244,33 @@ PROFILES: Dict[str, Dict[str, Any]] = {
         "note": "Hvad er underprissat, og hvor er sælgeren træt. Finder også "
         "boliger i kvarterer du ikke havde tænkt på.",
         "weights": {
-            "sqm_price_vs_benchmark": 45.0,
-            "neighbourhood": 12.0,
-            "water": 5.0,
-            "size": 12.0,
-            "condition": 6.0,
-            "negotiation_leverage": 15.0,
+            "sqm_price_vs_benchmark": 40.0,
+            "neighbourhood": 8.0,
+            "water": 4.0,
+            "size": 8.0,
+            "rooms": 5.0,
+            "transit": 5.0,
+            "noise": 4.0,
+            "condition": 5.0,
+            "negotiation_leverage": 16.0,
             "monthly_expense": 5.0,
         },
     },
     "plads_for_pengene": {
         "name": "Plads for pengene",
-        "note": "Kvadratmeter først. Rykker de store lejligheder i de billigere "
-        "kvarterer op, og straffer høj ejerudgift hårdere.",
+        "note": "Kvadratmeter og værelser først. Rykker de store lejligheder i "
+        "de billigere kvarterer op, og straffer høj ejerudgift hårdere.",
         "weights": {
-            "sqm_price_vs_benchmark": 30.0,
-            "neighbourhood": 14.0,
-            "water": 5.0,
-            "size": 30.0,
-            "condition": 9.0,
-            "negotiation_leverage": 5.0,
-            "monthly_expense": 7.0,
+            "sqm_price_vs_benchmark": 26.0,
+            "neighbourhood": 10.0,
+            "water": 4.0,
+            "size": 22.0,
+            "rooms": 12.0,
+            "transit": 6.0,
+            "noise": 5.0,
+            "condition": 6.0,
+            "negotiation_leverage": 4.0,
+            "monthly_expense": 5.0,
         },
     },
 }
@@ -266,13 +283,26 @@ DEFAULT_PROFILE: str = os.environ.get("KBH_PROFILE", "balanceret")
 WEIGHTS: Dict[str, float] = dict(PROFILES[DEFAULT_PROFILE]["weights"])
 
 
-def normalise_weights(weights: Dict[str, float]) -> Dict[str, float]:
+def normalise_weights(
+    weights: Dict[str, float], fill_missing: bool = False
+) -> Dict[str, float]:
     """Scale arbitrary slider values to sum to exactly 100.
 
     The custom profile lets any number go in any box, so this is what makes the
     result a valid weighting rather than an arbitrary multiplier. The rounding
     remainder lands on the largest weight.
+
+    ``fill_missing`` decides what an absent factor means, and the two cases are
+    genuinely different. Coming from the slider form, absent means the slider
+    was dragged to zero and the factor should be switched off. Coming from a
+    weighting saved before a new factor existed, absent means the question was
+    never asked, and zeroing it would silently disable the new factor for
+    anyone with a saved custom profile. That is how rooms, transit and noise
+    were switched off for their first run after being added.
     """
+    if fill_missing:
+        defaults = PROFILES[DEFAULT_PROFILE]["weights"]
+        weights = {k: weights.get(k, defaults.get(k, 0.0)) for k in FACTOR_KEYS}
     clean = {k: max(float(weights.get(k, 0) or 0), 0.0) for k in FACTOR_KEYS}
     total = sum(clean.values())
     if total <= 0:
@@ -290,6 +320,9 @@ FACTOR_LABELS: Dict[str, str] = {
     "neighbourhood": "Kvarter",
     "water": "Afstand til vand",
     "size": "Størrelse",
+    "rooms": "Værelser og rumfordeling",
+    "transit": "Afstand til metro og S-tog",
+    "noise": "Vejstøj og banestøj",
     "condition": "Stand, energi og alder",
     "negotiation_leverage": "Forhandlingsposition",
     "monthly_expense": "Ejerudgift",
@@ -308,6 +341,170 @@ SIZE_TOP_M2: int = 160
 # A flat that only just clears the 90 m2 floor should not score zero on size,
 # because it already passed a hard filter to get here.
 SIZE_FLOOR_SCORE: float = 30.0
+
+# --------------------------------------------------------------------------
+# Rooms
+#
+# Square metres and rooms are not the same question. A 120 m2 three room and a
+# 120 m2 five room score identically on size and are different homes, which is
+# why this is its own factor rather than a term inside the size curve.
+#
+# Mark's stated preference is more than three rooms, so four is where the curve
+# turns steeply upwards. Three is liveable rather than wrong, so it sits below
+# par rather than at zero.
+# --------------------------------------------------------------------------
+
+ROOM_SCORES: Dict[int, float] = {
+    1: 0.0,
+    2: 15.0,
+    3: 45.0,
+    4: 85.0,
+    5: 100.0,
+}
+# Anything at or above this many rooms gets the top score.
+ROOM_TOP_COUNT: int = 5
+
+# Rooms alone can be gamed by chopping a flat into cupboards, so a very low
+# mean area per room takes points back off. Living area includes kitchen,
+# bathroom and hallway while the room count does not, so a normal Copenhagen
+# flat lands well above this and is untouched.
+ROOM_AREA_TIGHT_M2: float = 20.0
+ROOM_AREA_PENALTY_MAX: float = 15.0
+
+# --------------------------------------------------------------------------
+# Transit
+#
+# Copenhagen is a rail city, and at this price point walking distance to a
+# metro or S-tog platform separates two otherwise identical flats.
+#
+# The curve starts falling at 250 m rather than at a comfortable five minute
+# walk, because a flatter curve measured against the real pool put half of all
+# listings at 98 or better and the factor separated nothing. Median distance
+# across the pool is 437 m, so 250 m is where the discrimination actually is.
+# Zero at 1.500 m, roughly an eighteen minute walk, which is where people
+# start cycling instead and stop counting the station as theirs.
+# --------------------------------------------------------------------------
+
+TRANSIT_FULL_SCORE_M: int = 250
+TRANSIT_ZERO_SCORE_M: int = 1500
+
+# --------------------------------------------------------------------------
+# Noise
+#
+# Road noise is modelled from lane count and speed limit, NOT from the OSM
+# highway class. That is not a stylistic choice, it is forced by how Denmark
+# is tagged, and getting it wrong makes the factor worse than useless.
+#
+# Danish OSM reserves primary and secondary for the national numbered road
+# network. Every major urban artery in Copenhagen is therefore tagged
+# tertiary: H.C. Andersens Boulevard, Åboulevard, Vesterbrogade, Jagtvej,
+# Tagensvej, Amagerbrogade and Østerbrogade are all the same class as a quiet
+# residential through street. A model built on highway class scores the
+# busiest road in the country as silent.
+#
+# Lanes and speed are both tagged on 90 pct. and 99 pct. of those ways
+# respectively, and they separate the same streets properly: H.C. Andersens
+# Boulevard runs 3 to 5 lanes at 50 to 60, while Nørrebrogade runs 1 to 2
+# lanes at 40 because it has been traffic calmed. That is the real difference
+# between the two addresses, and the class tag cannot see it.
+#
+# This is a proxy for traffic volume, not measured sound. Denmark publishes
+# actual modelled Lden contours under the EU noise directive, which would be
+# strictly better; the portal serving them needs registration, so it is on the
+# to-do list rather than in here.
+# --------------------------------------------------------------------------
+
+# Lane count to a base emission weight. Traffic volume scales roughly with the
+# number of lanes provided for it.
+NOISE_LANE_WEIGHT: Dict[int, float] = {1: 12.0, 2: 28.0, 3: 48.0, 4: 66.0, 5: 80.0}
+NOISE_LANE_TOP: int = 5  # this many lanes or more takes the top weight
+NOISE_LANE_DEFAULT: float = 28.0  # untagged, treated as an ordinary two lane street
+
+# Speed limit multiplier. Tyre noise dominates above about 40 km/h and rises
+# with speed, so the same traffic is louder on a 60 road than on a 30 one.
+NOISE_SPEED_MULT: Dict[int, float] = {
+    30: 0.70,
+    40: 0.85,
+    50: 1.00,
+    60: 1.15,
+    70: 1.30,
+    80: 1.45,
+}
+NOISE_SPEED_DEFAULT: float = 1.00
+
+# Floors for grade separated high volume roads, whose lane tagging understates
+# what it is like to live beside them.
+NOISE_CLASS_FLOOR: Dict[str, float] = {
+    "motorway": 92.0,
+    "trunk": 80.0,
+    "primary": 55.0,
+}
+
+# A train is a train, so railways carry a fixed weight rather than a modelled
+# one. Tunnels are excluded at fetch time.
+NOISE_RAILWAY_WEIGHT: float = 55.0
+
+# How far a source of a given weight carries, in metres. The loudest roads
+# reach about 500 m, an ordinary two lane street about 200 m.
+NOISE_REACH_BASE_M: float = 80.0
+NOISE_REACH_PER_WEIGHT_M: float = 4.2
+
+# Highway classes worth pulling at all. Residential and unclassified streets
+# are the normal condition of living in a city and would add a constant to
+# every listing rather than telling them apart.
+NOISE_HIGHWAY_CLASSES: Tuple[str, ...] = (
+    "motorway",
+    "trunk",
+    "primary",
+    "secondary",
+    "tertiary",
+)
+
+NOISE_LABELS: Dict[str, str] = {
+    "motorway": "motorvej",
+    "trunk": "indfaldsvej",
+    "primary": "større trafikvej",
+    "secondary": "trafikvej",
+    "tertiary": "bytrafikvej",
+    "railway": "jernbane",
+}
+
+
+def noise_weight(
+    kind: str, lanes: Optional[float] = None, maxspeed: Optional[float] = None
+) -> float:
+    """Emission weight, 0 to 100, for one road or railway.
+
+    Kept here rather than in geo.py so the whole noise model is tunable from
+    the one file a human is expected to edit.
+    """
+    if kind == "railway":
+        return NOISE_RAILWAY_WEIGHT
+
+    if lanes and lanes > 0:
+        count = int(round(lanes))
+        base = NOISE_LANE_WEIGHT.get(
+            min(count, NOISE_LANE_TOP), NOISE_LANE_WEIGHT[NOISE_LANE_TOP]
+        )
+    else:
+        base = NOISE_LANE_DEFAULT
+
+    if maxspeed and maxspeed > 0:
+        # Round to the nearest tabulated limit rather than requiring an exact
+        # match, so an unusual 45 or 55 still lands somewhere sensible.
+        nearest = min(NOISE_SPEED_MULT, key=lambda s: abs(s - maxspeed))
+        multiplier = NOISE_SPEED_MULT[nearest]
+    else:
+        multiplier = NOISE_SPEED_DEFAULT
+
+    weight = base * multiplier
+    return max(weight, NOISE_CLASS_FLOOR.get(kind, 0.0))
+
+
+def noise_reach_m(weight: float) -> float:
+    """How far a source of this weight is still audible enough to matter."""
+    return NOISE_REACH_BASE_M + NOISE_REACH_PER_WEIGHT_M * weight
+
 
 # m2 price against the local benchmark. Ratio below 1.0 means the flat is
 # asking less per m2 than its own parish has actually been selling for.

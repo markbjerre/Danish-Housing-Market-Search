@@ -72,11 +72,43 @@ def fetch_all(
 # --------------------------------------------------------------------------
 
 
+def load_geometry(
+    errors: Optional[List[str]] = None,
+) -> Tuple[
+    Optional[geo.WaterIndex], Optional[geo.TransitIndex], Optional[geo.NoiseIndex]
+]:
+    """Build the three geometry indexes, tolerating each one failing alone.
+
+    A dead Overpass mirror must not take the whole run down, and it must not
+    silently take a factor to zero either: a missing index makes its factor
+    score an explicit neutral and says so in the log.
+    """
+    loaders = (
+        ("water", geo.fetch_water, geo.WaterIndex),
+        ("transit", geo.fetch_transit, geo.TransitIndex),
+        ("noise", geo.fetch_noise, geo.NoiseIndex),
+    )
+    built: List[Any] = []
+    for label, fetch, index_class in loaders:
+        try:
+            built.append(index_class(fetch()))
+        except Exception as exc:
+            if errors is not None:
+                errors.append(f"{label} geometry unavailable: {exc}")
+            logger.error(
+                "%s geometry unavailable, that factor goes neutral: %s", label, exc
+            )
+            built.append(None)
+    return built[0], built[1], built[2]
+
+
 def score_all(
     conn: sqlite3.Connection,
     rows: Sequence[Dict[str, Any]],
     bench: benchmarks.BenchmarkSet,
     water: Optional[geo.WaterIndex],
+    transit: Optional[geo.TransitIndex] = None,
+    noise: Optional[geo.NoiseIndex] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Score every listing that survived the hard filters."""
     candidates = [r for r in rows if not r.get("excluded")]
@@ -127,9 +159,22 @@ def score_all(
             row.get("zip_code"), row.get("lat"), row.get("lon")
         )
 
+        has_point = bool(row.get("lat") and row.get("lon"))
+
         water_hit = None
-        if water is not None and water.ready and row.get("lat") and row.get("lon"):
+        if water is not None and water.ready and has_point:
             water_hit = water.nearest(row["lat"], row["lon"])
+
+        transit_hit = None
+        if transit is not None and transit.ready and has_point:
+            transit_hit = transit.nearest(row["lat"], row["lon"])
+
+        # None and [] mean different things here. None says the geometry was
+        # not available and the factor scores a neutral; [] says it was checked
+        # and the address is quiet.
+        noise_hits = None
+        if noise is not None and noise.ready and has_point:
+            noise_hits = noise.nearby(row["lat"], row["lon"])
 
         result = scoring.score_listing(
             listing=row,
@@ -143,6 +188,10 @@ def score_all(
             water_kind=water_hit.kind if water_hit else "",
             market=market,
             weights=weights,
+            transit_distance=transit_hit.distance_m if transit_hit else None,
+            transit_name=transit_hit.name if transit_hit else "",
+            transit_kind=transit_hit.kind if transit_hit else "",
+            noise_hits=noise_hits,
         )
 
         payload = result.as_dict()
@@ -529,14 +578,7 @@ def run(
             logger.info("Refreshing local benchmarks")
             bench = benchmarks.refresh(client, conn)
 
-            try:
-                water = geo.WaterIndex(geo.fetch_water())
-            except Exception as exc:
-                errors.append(f"water geometry unavailable: {exc}")
-                logger.error(
-                    "Water geometry unavailable, that factor goes neutral: %s", exc
-                )
-                water = None
+            water, transit, noise = load_geometry(errors)
 
             logger.info("Fetching listings")
             rows, raw = fetch_all(client)
@@ -586,7 +628,7 @@ def run(
                     )
                 conn.commit()
 
-            scores = score_all(conn, rows, bench, water)
+            scores = score_all(conn, rows, bench, water, transit, noise)
             logger.info("Scored %s listings", len(scores))
 
             verdicts = 0
@@ -642,10 +684,7 @@ def rescore() -> Dict[str, Any]:
     client = BoligsidenClient()
     with db.session() as conn:
         bench = benchmarks.refresh(client, conn)
-        try:
-            water = geo.WaterIndex(geo.fetch_water())
-        except Exception:
-            water = None
+        water, transit, noise = load_geometry()
 
         rows = [
             dict(r)
@@ -653,7 +692,7 @@ def rescore() -> Dict[str, Any]:
                 "SELECT * FROM listings WHERE is_active = 1"
             ).fetchall()
         ]
-        scores = score_all(conn, rows, bench, water)
+        scores = score_all(conn, rows, bench, water, transit, noise)
         return {"scored": len(scores)}
 
 

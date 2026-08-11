@@ -38,6 +38,17 @@ def listing(**overrides):
     return base
 
 
+def noise_hit(distance: float, kind: str = "tertiary", name: str = "Testvej", **kw):
+    """A geo.NoiseHit without needing the geometry files on disk.
+
+    The real one computes its own reach and penalty from the config model, so
+    building the real dataclass keeps the tests honest about that arithmetic
+    instead of restating it.
+    """
+    weight = kw.pop("weight", config.noise_weight(kind, lanes=3, maxspeed=50))
+    return geo.NoiseHit(kind=kind, distance_m=distance, name=name, weight=weight)
+
+
 class HardFilters(unittest.TestCase):
     def test_under_minimum_area_is_excluded(self):
         excluded, reason = parse.hard_filter(listing(living_area=89.9))
@@ -131,6 +142,47 @@ class Scoring(unittest.TestCase):
     def test_weights_sum_to_one_hundred(self):
         self.assertAlmostEqual(sum(config.WEIGHTS.values()), 100.0)
 
+    def test_every_profile_sums_to_one_hundred(self):
+        for key, profile in config.PROFILES.items():
+            with self.subTest(profile=key):
+                self.assertAlmostEqual(sum(profile["weights"].values()), 100.0)
+
+    def test_every_profile_covers_every_factor(self):
+        # A profile missing a key would score that factor at zero without
+        # saying so anywhere.
+        for key, profile in config.PROFILES.items():
+            with self.subTest(profile=key):
+                self.assertEqual(
+                    set(profile["weights"]), set(config.FACTOR_KEYS), f"{key} drifted"
+                )
+
+    def test_a_saved_custom_weighting_inherits_factors_added_later(self):
+        """The trap that switched off three new factors on their first run.
+
+        A custom weighting saved before rooms, transit and noise existed has no
+        key for them. Normalising it as a slider payload zeroes them, so the
+        pipeline logged the new factors at weight 0 and scored 501 listings
+        without them while looking entirely normal.
+        """
+        old = {
+            "sqm_price_vs_benchmark": 45.8,
+            "neighbourhood": 18.1,
+            "water": 0.0,
+            "size": 18.1,
+            "condition": 8.4,
+            "negotiation_leverage": 2.4,
+            "monthly_expense": 7.2,
+        }
+        as_saved = config.normalise_weights(old, fill_missing=True)
+        for key in ("rooms", "transit", "noise"):
+            self.assertGreater(as_saved[key], 0.0, f"{key} was silently switched off")
+        self.assertAlmostEqual(sum(as_saved.values()), 100.0)
+
+        # A slider set to zero must still mean zero.
+        as_slider = config.normalise_weights(old)
+        self.assertEqual(as_slider["rooms"], 0.0)
+        self.assertAlmostEqual(sum(as_slider.values()), 100.0)
+
     def test_price_well_under_benchmark_scores_full(self):
         f = scoring.score_sqm_price(
             listing(price=5_000_000, living_area=100), benchmark=80_000, basis="recent"
@@ -168,6 +220,80 @@ class Scoring(unittest.TestCase):
     def test_size_floor_does_not_score_zero(self):
         f = scoring.score_size(listing(living_area=90))
         self.assertEqual(f.score, config.SIZE_FLOOR_SCORE)
+
+    def test_four_rooms_beats_three(self):
+        # The stated preference is more than three rooms, so this is the step
+        # the curve exists to produce.
+        three = scoring.score_rooms(listing(number_of_rooms=3, living_area=110)).score
+        four = scoring.score_rooms(listing(number_of_rooms=4, living_area=110)).score
+        five = scoring.score_rooms(listing(number_of_rooms=5, living_area=110)).score
+        self.assertLess(three, four)
+        self.assertLess(four, five)
+
+    def test_rooms_missing_is_neutral_not_zero(self):
+        f = scoring.score_rooms(listing(number_of_rooms=None))
+        self.assertEqual(f.score, 50.0)
+        self.assertTrue(f.neutral)
+
+    def test_many_tiny_rooms_lose_points_to_a_normal_layout(self):
+        # Same room count, same hard filters passed, very different flat. Five
+        # rooms in 95 m2 is a flat chopped up to advertise a number.
+        chopped = scoring.score_rooms(listing(number_of_rooms=5, living_area=95)).score
+        normal = scoring.score_rooms(listing(number_of_rooms=5, living_area=140)).score
+        self.assertLess(chopped, normal)
+
+    def test_transit_curve_is_monotonic(self):
+        previous = 101.0
+        for distance in (0, 250, 400, 700, 1000, 1500, 3000):
+            score = scoring.score_transit(distance, "Nørreport", "metro").score
+            self.assertLessEqual(score, previous, f"went up at {distance} m")
+            previous = score
+
+    def test_transit_missing_is_neutral_not_zero(self):
+        f = scoring.score_transit(None, "", "")
+        self.assertEqual(f.score, 50.0)
+        self.assertTrue(f.neutral)
+
+    def test_quiet_address_scores_full_but_missing_data_scores_neutral(self):
+        # The distinction that matters. An empty list means the geometry was
+        # consulted and found nothing, which is a quiet home. None means the
+        # geometry was unavailable, which must not be rewarded as silence.
+        quiet = scoring.score_noise([])
+        unknown = scoring.score_noise(None)
+        self.assertEqual(quiet.score, 100.0)
+        self.assertFalse(quiet.neutral)
+        self.assertEqual(unknown.score, 50.0)
+        self.assertTrue(unknown.neutral)
+
+    def test_noise_penalty_grows_as_the_road_gets_closer(self):
+        previous = -1.0
+        for distance in (300, 200, 120, 60, 10):
+            score = scoring.score_noise([noise_hit(distance=distance)]).score
+            self.assertGreaterEqual(previous if previous >= 0 else 101.0, score)
+            previous = score
+        self.assertLess(score, 100.0)
+
+    def test_noise_sources_combine_in_energy_not_by_addition(self):
+        """Two equally loud roads must be a little worse than one, not twice.
+
+        Adding penalties straight up was the first implementation and it put an
+        ordinary Frederiksberg address with four moderate streets around it at
+        zero, level with a flat on a railway embankment. Sound does not work
+        that way and neither does this factor.
+        """
+        one = scoring.score_noise([noise_hit(distance=50)]).score
+        two = scoring.score_noise(
+            [noise_hit(distance=50), noise_hit(distance=50, name="Anden vej")]
+        ).score
+        single_penalty = 100.0 - one
+        double_penalty = 100.0 - two
+        self.assertGreater(double_penalty, single_penalty)
+        # Doubling the sources adds about three points, not another full penalty.
+        self.assertLess(double_penalty, single_penalty * 1.5)
+
+    def test_a_road_beyond_its_reach_costs_nothing(self):
+        far = scoring.score_noise([noise_hit(distance=10_000)])
+        self.assertEqual(far.score, 100.0)
 
     def test_negotiation_rewards_weak_demand(self):
         strong = scoring.score_negotiation(

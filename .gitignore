@@ -302,10 +302,19 @@ kbh/data/*.sqlite3
 kbh/data/*.sqlite3-shm
 kbh/data/*.sqlite3-wal
 
-# The cached OpenStreetMap water geometry IS committed on purpose. It is under
-# a megabyte, it changes about as often as the harbour does, and committing it
-# means a fresh deploy does not depend on an Overpass mirror being up.
+# The cached OpenStreetMap geometry IS committed on purpose. It changes about
+# as often as the harbour, the metro map and the road network do, and
+# committing it means a fresh deploy does not depend on an Overpass mirror
+# being up. That is not theoretical: during the build of the transit and noise
+# factors, two of the three mirrors returned 504 and a third answered 200 with
+# an empty result set.
+#
+# Nothing refetches these automatically. They only change when someone calls
+# the fetch with force=True, which is the right trade for coastlines and the
+# wrong one the day a new metro station opens.
 !kbh/data/water.geojson
+!kbh/data/transit.geojson
+!kbh/data/noise.geojson
 
 # ============================================================================
 # END OF .GITIGNORE

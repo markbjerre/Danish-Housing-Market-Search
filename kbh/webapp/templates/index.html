@@ -99,14 +99,34 @@
 .pbtn.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .pnote { font-size: 12px; color: var(--muted); flex-basis: 100%; margin-top: 2px; }
 
-.sliders { margin-top: 14px; display: grid; gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.sliders label { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-.sliders label > span { flex: 0 0 175px; color: var(--muted); }
-.sliders input[type=range] { flex: 1; accent-color: var(--accent); }
-.sliders b { flex: 0 0 26px; text-align: right; font-variant-numeric: tabular-nums; }
+/* Foldable weights box.
+   The name sits above its own slider rather than beside it. The previous
+   layout put a fixed 175px label in a 280px column, which worked at seven
+   factors and collapsed at ten: "Kvadratmeterpris mod sognet" and "Afstand
+   til metro og S-tog" overflowed straight across their own sliders and the
+   value. Stacking cannot collide however long a Danish label gets. */
+.wbox { margin-top: 12px; border: 1px solid var(--line); border-radius: 9px;
+  padding: 0 14px; }
+.wbox > summary { cursor: pointer; padding: 10px 0; font-size: 13px;
+  color: var(--muted); list-style: none; display: flex; align-items: center;
+  gap: 8px; }
+.wbox > summary::-webkit-details-marker { display: none; }
+.wbox > summary::before { content: '\25B8'; font-size: 11px; }
+.wbox[open] > summary::before { content: '\25BE'; }
+.wbox > summary:hover { color: var(--accent); }
+.sliders { padding-bottom: 14px; display: grid; gap: 12px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.sliders label { display: grid; grid-template-columns: 1fr auto;
+  align-items: baseline; gap: 3px 8px; font-size: 13px; min-width: 0; }
+/* min-width:0 is what actually lets the name shrink inside a grid column
+   instead of forcing the column wider than its share. */
+.sliders label > span { color: var(--muted); min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.sliders b { text-align: right; font-variant-numeric: tabular-nums; }
+.sliders input[type=range] { grid-column: 1 / -1; width: 100%; margin: 0;
+  accent-color: var(--accent); }
 .srow { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center;
-  margin-top: 4px; flex-wrap: wrap; }
+  margin-top: 2px; flex-wrap: wrap; }
 </style>
 {% endblock %}
 
@@ -126,22 +146,25 @@
     </span>
   </div>
 
-  <div class="sliders" id="sliders" {% if profile_key != 'custom' %}hidden{% endif %}>
-    {% for key in factor_keys %}
-    <label>
-      <span>{{ labels[key] }}</span>
-      <input type="range" min="0" max="50" step="1" data-key="{{ key }}"
-             value="{{ weights[key]|round|int }}">
-      <b data-out="{{ key }}">{{ weights[key]|round|int }}</b>
-    </label>
-    {% endfor %}
-    <div class="srow">
-      <button type="button" class="pbtn" id="applyCustom">Gem vægtning</button>
-      <span class="muted" style="font-size:12px">
-        Normaliseres til 100. Ingen boliger vurderes forfra: kun regnestykket ændrer sig.
-      </span>
+  <details class="wbox" id="sliders" {% if profile_key == 'custom' %}open{% endif %}>
+    <summary>Tilpas vægtningen selv</summary>
+    <div class="sliders">
+      {% for key in factor_keys %}
+      <label>
+        <span title="{{ labels[key] }}">{{ labels[key] }}</span>
+        <b data-out="{{ key }}">{{ weights[key]|round|int }}</b>
+        <input type="range" min="0" max="50" step="1" data-key="{{ key }}"
+               value="{{ weights[key]|round|int }}">
+      </label>
+      {% endfor %}
+      <div class="srow">
+        <button type="button" class="pbtn" id="applyCustom">Gem vægtning</button>
+        <span class="muted" style="font-size:12px">
+          Normaliseres til 100. Ingen boliger vurderes forfra: kun regnestykket ændrer sig.
+        </span>
+      </div>
     </div>
-  </div>
+  </details>
 </div>
 
 <form class="filters" method="get">
@@ -233,6 +256,7 @@
           {% elif r.balcony_ai == 0 %}<span class="pill" title="Vurderingen fandt ingen altan">ingen altan</span>
           {% elif r.has_balcony or r.has_balcony_text %}<span class="pill good">altan</span>{% endif %}
           {% if r.has_elevator %}<span class="pill">elevator</span>{% endif %}
+          {% if r.floor_plan_url %}<span class="pill" title="Plantegning findes">plan</span>{% endif %}
           {% if r.energy_label %}<span class="pill">energi {{ r.energy_label|upper }}</span>{% endif %}
           {% if r.days_listed is not none %}<span>{{ r.days_listed }} dage</span>{% endif %}
           {% if r.price_change_pct and r.price_change_pct < 0 %}
@@ -331,9 +355,13 @@ async function setProfile(body) {
 document.querySelectorAll('.pbtn[data-profile]').forEach(b =>
   b.addEventListener('click', () => setProfile({ profile: b.dataset.profile })));
 
+// The box folds itself, so "Tilpas" only has to open it and scroll it into
+// view. Toggling `hidden` here would fight the details element and leave the
+// caret pointing the wrong way.
 const sliders = document.getElementById('sliders');
 document.getElementById('customBtn').addEventListener('click', () => {
-  sliders.hidden = !sliders.hidden;
+  sliders.open = !sliders.open;
+  if (sliders.open) sliders.scrollIntoView({ block: 'nearest' });
 });
 
 sliders.querySelectorAll('input[type=range]').forEach(input => {

@@ -81,6 +81,13 @@ næsten altid flere. Derfor:
 * Er alle billeder taget fra døråbningen med vidvinkel, er rummene mindre end de ser ud, \
   og det må du gerne nævne.
 
+VIGTIGT OM DEN OFFENTLIGE VURDERING. Den er fastfrosset på 2011- og 2012-niveau og er ikke \
+en markedsværdi. Alle boliger i København udbydes til omkring tre til fire gange den. Du får \
+oplyst både boligens eget forhold og medianen for hele puljen. Nævn det kun hvis boligen \
+afviger markant fra medianen, og skriv aldrig at en bolig er overprissat alene fordi \
+udbudsprisen ligger over den offentlige vurdering. Det gælder hver enkelt bolig i byen og \
+siger derfor intet om denne.
+
 Vurder prisen mod det lokale benchmark du får oplyst, ikke mod din egen fornemmelse af det \
 danske marked. Benchmark er realiserede salgspriser i boligens eget sogn, eller udbudspriser \
 i nabolaget hvor sognet dækker to forskellige markeder.
@@ -451,7 +458,30 @@ def build_brief(
     a(f"BBR KØKKEN: {listing.get('kitchen_condition') or 'ikke oplyst'}")
     a(f"BBR BAD: {listing.get('bathroom_condition') or 'ikke oplyst'}")
     a(f"VARME: {listing.get('heating') or 'ikke oplyst'}")
-    a(f"OFFENTLIG VURDERING: {_kr(listing.get('latest_valuation'))}")
+    # The public valuation is stated relative to the pool, never as a bare
+    # number. On its own it is a trap: Copenhagen flats are still assessed at
+    # the frozen 2011 and 2012 level, so asking prices sit at roughly three and
+    # a half times it across the whole city. Handed the raw figure, the model
+    # read it as evidence that each individual flat was overpriced by a factor
+    # of three, and wrote that into red_flags on six listings.
+    valuation = listing.get("latest_valuation")
+    ratio = score.get("valuation_ratio")
+    median_ratio = score.get("valuation_ratio_median")
+    if valuation and ratio and median_ratio:
+        a(
+            f"OFFENTLIG VURDERING: {_kr(valuation)}, altså {ratio:.1f} gange "
+            f"under udbudsprisen. Medianen for alle boliger i puljen er "
+            f"{median_ratio:.1f} gange, fordi vurderingerne stammer fra 2011 "
+            f"og 2012 og ikke er markedsværdier. Tallet er derfor kun værd at "
+            f"nævne hvis boligen ligger markant over eller under {median_ratio:.1f}."
+        )
+    elif valuation:
+        a(
+            f"OFFENTLIG VURDERING: {_kr(valuation)}. Vurderingerne stammer fra "
+            f"2011 og 2012, ligger typisk tre til fire gange under "
+            f"udbudsprisen for alle boliger i København, og siger derfor intet "
+            f"om netop denne bolig."
+        )
     a(
         f"MÆGLERENS ALTANFLAG: {'ja' if listing.get('has_balcony') else 'nej'}"
         f" (teksten nævner altan: {'ja' if listing.get('has_balcony_text') else 'nej'})"
@@ -487,6 +517,21 @@ def build_brief(
             f"AFSTAND TIL VAND: {score['water_distance_m']:.0f} m til "
             f"{score.get('water_name') or 'havn eller kyst'}"
         )
+    if score.get("transit_distance_m") is not None:
+        a(
+            f"AFSTAND TIL TOG: {score['transit_distance_m']:.0f} m til "
+            f"{score.get('transit_name') or 'station'} "
+            f"({score.get('transit_kind') or 'station'})"
+        )
+    noise_sources = score.get("noise_sources") or []
+    if noise_sources:
+        described = ", ".join(
+            f"{s['distance_m']:.0f} m til {s['name'] or s['kind']}"
+            for s in noise_sources[:3]
+        )
+        a(f"STØJKILDER TÆT PÅ: {described}")
+    elif score.get("noise_sources") == []:
+        a("STØJKILDER TÆT PÅ: ingen større vej eller bane inden for hørevidde")
 
     sold = [e for e in sale_history if e.get("event_type") == "sold" and e.get("price")]
     if sold:

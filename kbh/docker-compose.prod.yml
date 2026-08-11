@@ -7,11 +7,20 @@
 # daily pipeline, and they share a named volume because the SQLite file is the
 # only thing between them.
 #
-# Routed on its own subdomain rather than a path prefix. That is not a
-# preference: the templates use root relative links throughout (href="/bolig/..",
-# fetch('/api/rate')) and contain no url_for at all, so serving under
-# /kbh would break every link and every API call on the page. A subdomain costs
-# one DNS record and no code.
+# Served at ai-vaerksted.cloud/boligjagt, alongside the rest of the site, so
+# there is no new DNS record and no new certificate.
+#
+# That needs three things to line up, and dropping any one of them breaks the
+# site in a way that looks like a routing problem rather than a config one:
+#
+#   1. StripPrefix removes /boligjagt before the request reaches Flask, so the
+#      app always sees "/" and its routes need no prefix awareness.
+#   2. Traefik sets X-Forwarded-Prefix, which the app turns into SCRIPT_NAME so
+#      that outgoing links and redirects know where they are mounted.
+#   3. The templates build every link and every fetch() from that prefix. They
+#      used to be root relative throughout, which is why this needed a code
+#      change rather than a label: a link to /bolig/x from a page at
+#      /boligjagt/ leaves the app entirely.
 
 services:
   ai-vaerksted-kbh:
@@ -30,10 +39,15 @@ services:
       KBH_DB_PATH: /data/kbh.sqlite3
     labels:
       - traefik.enable=true
-      - traefik.http.routers.kbh.rule=Host(`boliger.ai-vaerksted.cloud`)
+      - traefik.http.routers.kbh.rule=Host(`ai-vaerksted.cloud`) && PathPrefix(`/boligjagt`)
       - traefik.http.routers.kbh.entrypoints=websecure
       - traefik.http.routers.kbh.tls.certresolver=mytlschallenge
       - traefik.http.services.kbh.loadbalancer.server.port=8000
+      # Unlike the wedding app, this one DOES use StripPrefix. That app serves
+      # static files from nginx and needs the full path; this one is a Flask
+      # app whose routes are defined at the root and which is told where it
+      # lives via X-Forwarded-Prefix instead.
+      - traefik.http.middlewares.kbh-strip.stripprefix.prefixes=/boligjagt
       # Basic auth does two jobs here, and the second one is easy to break.
       #
       # It keeps the public internet out, which matters because the pages carry
@@ -50,13 +64,16 @@ services:
       #
       # Generate one entry per person and join them with a comma:
       #   htpasswd -nbB mark 'password-one' | sed -e 's/\$/\$\$/g'
-      #   htpasswd -nbB anna 'password-two' | sed -e 's/\$/\$\$/g'
+      #   htpasswd -nbB ellabella 'password-two' | sed -e 's/\$/\$\$/g'
       # The doubled dollars are required: compose eats single ones, and the
       # symptom is a login that rejects the correct password with no error.
       #
       # The username becomes the rater key, so keep it lowercase and stable.
       # Renaming a login orphans that person's ratings under the old name.
-      - traefik.http.routers.kbh.middlewares=kbh-auth
+      #
+      # Order matters: authenticate first, then strip. Both are named on one
+      # label, comma separated, and Traefik applies them left to right.
+      - traefik.http.routers.kbh.middlewares=kbh-auth,kbh-strip
       - traefik.http.middlewares.kbh-auth.basicauth.users=${KBH_BASIC_AUTH}
 
   ai-vaerksted-kbh-cron:

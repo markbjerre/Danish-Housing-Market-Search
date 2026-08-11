@@ -57,7 +57,7 @@ table.kv th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
 <div class="panel">
   <p style="margin-top:0">Du har ikke bedømt nogen boliger endnu. Mønstrene kommer af
   dine egne stjerner og kommentarer, så der er intet at regne på før du er i gang.</p>
-  <a class="btn" href="/bedoem">Begynd at bedømme</a>
+  <a class="btn" href="{{ base }}/bedoem">Begynd at bedømme</a>
 </div>
 {% endif %}
 
@@ -70,7 +70,7 @@ table.kv th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
   <p class="muted" style="margin-top:0">
     Claude kan læse dine {{ report.comments|length }} kommentarer og sige hvad de har til fælles.
   </p>
-  <a class="btn" href="/moenstre?ai=1">Analysér kommentarerne</a>
+  <a class="btn" href="{{ base }}/moenstre?ai=1">Analysér kommentarerne</a>
   {% endif %}
 </div>
 {% endif %}
@@ -187,7 +187,7 @@ table.kv th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     {% for r in rated %}
     <tr>
       <td style="color:var(--accent);font-weight:600">{{ '*' * r.stars }}</td>
-      <td><a href="/bolig/{{ r.case_id }}" style="text-decoration:none">{{ r.address }}</a></td>
+      <td><a href="{{ base }}/bolig/{{ r.case_id }}" style="text-decoration:none">{{ r.address }}</a></td>
       <td class="muted">{{ r.neighbourhood }}</td>
       <td class="n">{{ r.price|kr }}</td>
       <td class="n">{{ (r.score or 0)|round|int }}</td>
@@ -203,7 +203,7 @@ table.kv th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
 {% if report.suggested_weights %}
 <script>
 document.getElementById('applySuggested').addEventListener('click', async () => {
-  const res = await fetch('/api/profile', {
+  const res = await fetch(BASE + '/api/profile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

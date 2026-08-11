@@ -23,6 +23,50 @@ app = Flask(__name__)
 
 
 # --------------------------------------------------------------------------
+# Mount point
+#
+# The app is served at the root locally and under /boligjagt behind Traefik.
+# Traefik strips the prefix before forwarding, so the app sees "/" either way
+# and only the outgoing links differ.
+#
+# Every template builds its links from `base`, which is empty locally and
+# "/boligjagt" in production. That is not decoration: the templates use root
+# relative links throughout, and a link to "/bolig/x" from a page served at
+# /boligjagt/ goes to the wrong place entirely. The JavaScript has the same
+# problem with its fetch() calls, which is why BASE is exposed there too.
+# --------------------------------------------------------------------------
+
+
+class PrefixMiddleware:
+    """Honour X-Forwarded-Prefix so Flask knows where it is mounted.
+
+    Traefik's StripPrefix middleware removes the path prefix and records what
+    it removed in this header. Feeding it to SCRIPT_NAME is what makes
+    request.script_root, url_for and redirects agree with reality instead of
+    all pointing at the root of the domain.
+    """
+
+    def __init__(self, wsgi_app: Any) -> None:
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ: Dict[str, Any], start_response: Any) -> Any:
+        prefix = environ.get("HTTP_X_FORWARDED_PREFIX", "").rstrip("/")
+        if prefix:
+            environ["SCRIPT_NAME"] = prefix
+        return self.wsgi_app(environ, start_response)
+
+
+app.wsgi_app = PrefixMiddleware(app.wsgi_app)
+
+
+@app.context_processor
+def inject_base() -> Dict[str, Any]:
+    # script_root is "" at the root and "/boligjagt" behind the proxy, with no
+    # trailing slash in either case, so "{{ base }}/bedoem" is correct for both.
+    return {"base": request.script_root or ""}
+
+
+# --------------------------------------------------------------------------
 # Who is looking
 #
 # There is no login screen and there should not be one. Traefik does HTTP

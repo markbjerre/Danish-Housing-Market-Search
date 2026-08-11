@@ -43,7 +43,7 @@
 <div class="controls">
   <span class="muted">Mindste forskel</span>
   {% for g in [1, 2, 3] %}
-  <a class="pbtn {{ 'on' if min_gap == g }}" href="/uenighed?gap={{ g }}">{{ g }} stjerne{{ 'r' if g > 1 }}</a>
+  <a class="pbtn {{ 'on' if min_gap == g }}" href="{{ base }}/uenighed?gap={{ g }}">{{ g }} stjerne{{ 'r' if g > 1 }}</a>
   {% endfor %}
   <span class="muted" style="margin-left:auto">
     {% for r in everyone %}{{ r.rater }} har bedømt {{ r.count }}{{ ", " if not loop.last }}{% endfor %}
@@ -56,7 +56,7 @@
   <p class="muted" style="margin:6px 0 0;font-size:13px">
     {% if everyone|length < 2 %}
       Der er kun én person der har bedømt noget. Siden bliver først interessant når I begge har været igennem
-      <a href="/bedoem">bedømmelsessiden</a>.
+      <a href="{{ base }}/bedoem">bedømmelsessiden</a>.
     {% else %}
       I har bedømt de samme boliger ens, eller I har ikke overlappet endnu.
     {% endif %}
@@ -70,7 +70,7 @@
   {% else %}<div class="noimg"></div>{% endif %}
 
   <div>
-    <h3><a href="/bolig/{{ r.case_id }}">{{ r.address }}</a></h3>
+    <h3><a href="{{ base }}/bolig/{{ r.case_id }}">{{ r.address }}</a></h3>
     <p class="facts">
       {{ r.price|kr }} kr.
       {%- if r.living_area %}, {{ r.living_area|round|int }} m2{% endif %}

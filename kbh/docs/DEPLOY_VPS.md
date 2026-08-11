@@ -2,20 +2,24 @@
 
 **Last updated:** 2026-08
 
-Flask under gunicorn behind Traefik, plus a second container running the daily
-pipeline on cron. Follows the same shape as `wedding-shopping-list`, with three
-deliberate differences noted below.
+Flask under gunicorn behind Traefik at **`/boligjagt`**, plus a second
+container running the daily pipeline on cron. Follows the same shape as
+`wedding-shopping-list`, with the differences noted below.
 
 ## How this differs from the wedding app
 
 Read these before starting. Each one will bite otherwise.
 
-**It is on a subdomain, not a path prefix.** The wedding app sits at
-`/wedding-shopping/`. This one cannot: the templates use root relative links
-throughout (`href="/bolig/.."`, `fetch('/api/rate')`) and contain no `url_for`
-at all, so serving it under `/kbh` breaks every link and every API call on the
-page. A subdomain costs one DNS record. A path prefix costs a rewrite of six
-templates and the JavaScript in them.
+**It uses StripPrefix, where the wedding app must not.** That app serves
+static files from nginx, which needs the full `/wedding-shopping/` path. This
+one is a Flask app whose routes are defined at the root, so Traefik strips
+`/boligjagt` and tells the app where it lives via `X-Forwarded-Prefix`.
+
+That header is not optional. The app turns it into `SCRIPT_NAME`, and every
+template builds its links and its `fetch()` calls from it. Drop the header and
+the site still loads, but every link points at `ai-vaerksted.cloud/bolig/...`
+and leaves the app entirely. The templates were root relative until this move
+and had to be rewritten for it.
 
 **It has state.** The wedding app is stateless and keeps everything in
 Supabase. This keeps a SQLite file, so both containers mount a named volume at
@@ -56,25 +60,18 @@ single rater table is kept as `ratings_single_rater` rather than dropped,
 because those judgements are the only data in the system that cannot be
 refetched from Boligsiden.
 
-Add the second person's display name to `RATER_NAMES` in `kbh/config.py` so
-the header says "Anna" rather than "anna". The username in the htpasswd entry
-is the rater key: keep it lowercase, and do not rename it later, because
-renaming a login orphans that person's ratings under the old name.
+`mark` and `ellabella` are already in `RATER_NAMES` in `kbh/config.py`, which
+is what makes the header read "Ellabella" rather than "ellabella". Add an entry
+there for anyone else who gets a login.
+
+The username in the htpasswd entry is the rater key. Keep it lowercase, and do
+not rename it later: renaming a login orphans that person's ratings under the
+old name, with no error and no obvious symptom beyond their stars vanishing.
 
 ## 1. DNS
 
-Add an A record before anything else, or the certificate request fails and
-Traefik will keep retrying against Let's Encrypt rate limits:
-
-```
-boliger.ai-vaerksted.cloud.   A   72.61.179.126
-```
-
-Confirm it resolves before continuing:
-
-```bash
-dig +short boliger.ai-vaerksted.cloud
-```
+Nothing to do. It runs on the existing `ai-vaerksted.cloud` certificate and
+hostname, under a path, so there is no new record and no new certificate.
 
 ## 2. Repo on the server
 
@@ -100,11 +97,11 @@ TELEGRAM_CHAT_ID=987654321
 # Basic auth for the web UI, and the app's only notion of who is who.
 # One entry per person, joined with a comma. Generate each with:
 #   htpasswd -nbB mark 'password-one' | sed -e 's/\$/\$\$/g'
-#   htpasswd -nbB anna 'password-two' | sed -e 's/\$/\$\$/g'
+#   htpasswd -nbB ellabella 'password-two' | sed -e 's/\$/\$\$/g'
 # The doubled dollar signs are required. Compose eats single ones and you get
 # a login that rejects the correct password with no useful error.
 # The username becomes the rater key, so keep it lowercase and stable.
-KBH_BASIC_AUTH=mark:$$2y$$05$$...,anna:$$2y$$05$$...
+KBH_BASIC_AUTH=mark:$$2y$$05$$...,ellabella:$$2y$$05$$...
 ```
 
 ## 4. docker-compose services
@@ -141,8 +138,8 @@ docker compose exec ai-vaerksted-kbh-cron \
 ## 7. Verify
 
 ```bash
-curl -sI https://boliger.ai-vaerksted.cloud/ | head -5                    # expect 401
-curl -sI -u mark:PASSWORD https://boliger.ai-vaerksted.cloud/ | head -5   # expect 200
+curl -sI https://ai-vaerksted.cloud/boligjagt/ | head -5                    # expect 401
+curl -sI -u mark:PASSWORD https://ai-vaerksted.cloud/boligjagt/ | head -5   # expect 200
 docker compose logs --tail 20 ai-vaerksted-kbh-cron       # expect the cron schedule line
 ```
 
@@ -156,7 +153,7 @@ name, Traefik is not forwarding the Authorization header and every rating is
 landing on one account.
 
 ```bash
-curl -s -u anna:PASSWORD https://boliger.ai-vaerksted.cloud/ | grep -o 'whoami[^<]*<[^<]*'
+curl -s -u ellabella:PASSWORD https://ai-vaerksted.cloud/boligjagt/ | grep -o 'whoami[^<]*<[^<]*'
 ```
 
 ## The AI verdicts do not move to the server for free
@@ -193,9 +190,9 @@ any of this. Only the verdict text is affected.
 It was the tighter option and it is ruled out by the requirement: a second
 person needs access from her own phone and laptop, and Tailscale means
 installing a VPN client on every device she uses and keeping it connected. A
-URL and a password is the right trade here. Basic auth over TLS, on a
-subdomain nobody links to, for a site whose worst case disclosure is which
-flats two people liked.
+URL and a password is the right trade here. Basic auth over TLS, on a path
+nothing links to, for a site whose worst case disclosure is which flats two
+people liked.
 
 If that ever stops feeling sufficient, the upgrade is Traefik's forward auth
 against an identity provider, not a login page bolted onto Flask.

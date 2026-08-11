@@ -233,7 +233,7 @@
        HTML: the parser closed the outer one early and the whole grid collapsed.
        A stretched overlay link gives the same whole-card click, legally. #}
     <article class="card {{ 'rated' if r.stars }}">
-      <a class="cardlink" href="/bolig/{{ r.case_id }}"
+      <a class="cardlink" href="{{ base }}/bolig/{{ r.case_id }}"
          aria-label="{{ r.address }}"></a>
 
       {% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">
@@ -344,7 +344,7 @@ window.addEventListener('load', () => {
 // Switching profile is a POST and a reload. Nothing is re-evaluated: the server
 // recomputes every total from factor scores it already has.
 async function setProfile(body) {
-  const res = await fetch('/api/profile', {
+  const res = await fetch(BASE + '/api/profile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -395,7 +395,7 @@ document.querySelectorAll('.rate').forEach(widget => {
     // Clicking the star you already gave clears the rating.
     const stars = clicked === current ? 0 : clicked;
     try {
-      const res = await fetch('/api/rate', {
+      const res = await fetch(BASE + '/api/rate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_id: widget.dataset.case, stars: stars })
@@ -424,7 +424,7 @@ function colour(score) {
   return '#f87171';
 }
 
-fetch('/api/map' + window.location.search)
+fetch(BASE + '/api/map' + window.location.search)
   .then(r => r.json())
   .then(points => {
     const group = [];
@@ -439,7 +439,7 @@ fetch('/api/map' + window.location.search)
       m.bindPopup(
         `<b>${p.address}</b><br>${(p.price || 0).toLocaleString('da-DK')} kr, ${p.area || '?'} m2` +
         `<br>${p.hood || ''}, score ${Math.round(p.score || 0)}` +
-        `<br><a href="/bolig/${p.id}">Åbn</a>`
+        `<br><a href="${BASE}/bolig/${p.id}">Åbn</a>`
       );
       group.push(m);
     });

@@ -222,6 +222,53 @@ class Raters(unittest.TestCase):
         self.assertEqual(self.db.disagreements(self.conn, min_gap=1), rows)
 
 
+class MountPoint(unittest.TestCase):
+    """The app is served at the root locally and under /boligjagt in production.
+
+    Every link and every fetch() has to carry the prefix, and the failure is
+    not a crash: a link to /bolig/x from a page served at /boligjagt/ leaves
+    the app and lands on the rest of the site, which returns somebody else's
+    404. Rendering is checked rather than mocked because the bug lives in the
+    templates.
+    """
+
+    def setUp(self):
+        from .webapp.app import app
+
+        app.config["TESTING"] = True
+        self.client = app.test_client()
+
+    def _links(self, html):
+        import re
+
+        return set(re.findall(r'href="(/[^"#?]*)', html))
+
+    def test_links_carry_the_prefix_when_mounted_under_one(self):
+        response = self.client.get("/", headers={"X-Forwarded-Prefix": "/boligjagt"})
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        stray = [
+            link for link in self._links(html) if not link.startswith("/boligjagt")
+        ]
+        self.assertEqual(stray, [], f"links that would escape the mount point: {stray}")
+
+    def test_javascript_gets_the_prefix_too(self):
+        """The fetch() calls are the half that fails silently.
+
+        A broken link is visible immediately. A fetch() to the wrong path just
+        means saving a rating stops working, with the star still lighting up.
+        """
+        html = self.client.get(
+            "/", headers={"X-Forwarded-Prefix": "/boligjagt"}
+        ).get_data(as_text=True)
+        self.assertIn('const BASE = "/boligjagt"', html)
+
+    def test_the_root_mount_is_unchanged(self):
+        html = self.client.get("/").get_data(as_text=True)
+        self.assertIn('const BASE = ""', html)
+        self.assertIn('href="/bedoem"', html)
+
+
 class Scoring(unittest.TestCase):
     def setUp(self):
         self.market = scoring.MarketContext()

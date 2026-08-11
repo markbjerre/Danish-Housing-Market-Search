@@ -77,11 +77,11 @@ footer { padding: 30px 20px; color: var(--muted); font-size: 12px; text-align: c
 <header>
   <h1>Boligmonitor København</h1>
   <nav>
-    <a href="/" class="{{ 'on' if request.path == '/' }}">Boliger</a>
-    <a href="/bedoem" class="{{ 'on' if request.path == '/bedoem' }}">Bedøm</a>
-    <a href="/moenstre" class="{{ 'on' if request.path == '/moenstre' }}">Mønstre</a>
-    <a href="/uenighed" class="{{ 'on' if request.path == '/uenighed' }}">Uenigheder</a>
-    <a href="/udelukkede" class="{{ 'on' if request.path == '/udelukkede' }}">Frafiltreret</a>
+    <a href="{{ base }}/" class="{{ 'on' if request.path == '/' }}">Boliger</a>
+    <a href="{{ base }}/bedoem" class="{{ 'on' if request.path == '/bedoem' }}">Bedøm</a>
+    <a href="{{ base }}/moenstre" class="{{ 'on' if request.path == '/moenstre' }}">Mønstre</a>
+    <a href="{{ base }}/uenighed" class="{{ 'on' if request.path == '/uenighed' }}">Uenigheder</a>
+    <a href="{{ base }}/udelukkede" class="{{ 'on' if request.path == '/udelukkede' }}">Frafiltreret</a>
   </nav>
   {# Whose stars are being shown. Without this the page is ambiguous the moment
      more than one person can log in, and a rating going to the wrong name is
@@ -94,6 +94,13 @@ footer { padding: 30px 20px; color: var(--muted); font-size: 12px; text-align: c
   Data fra Boligsiden. Benchmarks er realiserede salgspriser pr. sogn kombineret med
   udbudspriser i nabolaget. Vurderinger er maskingenererede og skal efterprøves.
 </footer>
+<script>
+// Where the app is mounted: "" locally, "/boligjagt" behind Traefik. Every
+// fetch() and every link built in JavaScript has to start with this, because
+// a request to "/api/rate" from a page served at /boligjagt/ leaves the app
+// entirely and returns the wrong site's 404.
+const BASE = {{ base|tojson }};
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

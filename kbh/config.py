@@ -543,9 +543,14 @@ ENERGY_SCORES: Dict[str, float] = {
 DEFAULT_RATER: str = os.environ.get("KBH_RATER", "mark")
 
 # Display names for the login usernames. Anyone not listed shows as their
-# username, which is ugly rather than broken.
+# username capitalised, which is ugly rather than broken.
+#
+# The key is the HTTP basic auth username and it is also the database key for
+# every rating that person has given. Renaming one here is cosmetic; renaming
+# it in the htpasswd entry orphans their ratings under the old name.
 RATER_NAMES: Dict[str, str] = {
     "mark": "Mark",
+    "ellabella": "Ellabella",
 }
 
 # --------------------------------------------------------------------------

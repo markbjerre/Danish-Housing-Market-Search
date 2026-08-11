@@ -68,7 +68,7 @@ textarea.note {
 {# Going back through history keeps the filters and the remembered scroll
    position. The href is the fallback for a direct visit with no history. #}
 <p style="margin-top:0">
-  <a href="/" class="muted" style="text-decoration:none" id="backLink">&larr; Tilbage til listen</a>
+  <a href="{{ base }}/" class="muted" style="text-decoration:none" id="backLink">&larr; Tilbage til listen</a>
 </p>
 
 <div class="top">
@@ -296,7 +296,7 @@ widget.addEventListener('click', e => {
 });
 
 document.getElementById('saveRating').addEventListener('click', async () => {
-  const res = await fetch('/api/rate', {
+  const res = await fetch(BASE + '/api/rate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

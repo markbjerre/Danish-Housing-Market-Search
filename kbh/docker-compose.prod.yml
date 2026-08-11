@@ -34,11 +34,28 @@ services:
       - traefik.http.routers.kbh.entrypoints=websecure
       - traefik.http.routers.kbh.tls.certresolver=mytlschallenge
       - traefik.http.services.kbh.loadbalancer.server.port=8000
-      # The app has no authentication of any kind, and the pages carry private
-      # ratings and notes. Basic auth is the minimum that should ever face the
-      # public internet. Generate the hash with:
-      #   htpasswd -nbB mark 'your-password' | sed -e 's/\$/\$\$/g'
-      # The doubled dollars are required: compose eats single ones.
+      # Basic auth does two jobs here, and the second one is easy to break.
+      #
+      # It keeps the public internet out, which matters because the pages carry
+      # private notes about homes you may be bidding on.
+      #
+      # It is also the app's only notion of identity. Traefik forwards the
+      # Authorization header it just validated, and the app reads the username
+      # from it to decide whose stars a rating becomes. One account per person,
+      # so two people get two sets of ratings instead of overwriting each other.
+      #
+      # Do NOT set `removeHeader=true` on this middleware. Traefik would stop
+      # forwarding the header, every rating would silently fall back to the
+      # default rater, and both people would be writing to one name again.
+      #
+      # Generate one entry per person and join them with a comma:
+      #   htpasswd -nbB mark 'password-one' | sed -e 's/\$/\$\$/g'
+      #   htpasswd -nbB anna 'password-two' | sed -e 's/\$/\$\$/g'
+      # The doubled dollars are required: compose eats single ones, and the
+      # symptom is a login that rejects the correct password with no error.
+      #
+      # The username becomes the rater key, so keep it lowercase and stable.
+      # Renaming a login orphans that person's ratings under the old name.
       - traefik.http.routers.kbh.middlewares=kbh-auth
       - traefik.http.middlewares.kbh-auth.basicauth.users=${KBH_BASIC_AUTH}
 

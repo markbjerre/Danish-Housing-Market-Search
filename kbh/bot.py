@@ -53,11 +53,14 @@ def _rows(
     where: str = "", params: Sequence[Any] = (), limit: int = 5
 ) -> List[Dict[str, Any]]:
     with db.session() as conn:
-        sql = f"{db.LISTING_VIEW} WHERE l.is_active = 1 AND l.excluded = 0"
+        # The bot has no login, so it shows the default rater's stars. The
+        # rater is the first bound parameter of the view, ahead of the
+        # caller's own.
+        sql = f"{db.listing_view()} WHERE l.is_active = 1 AND l.excluded = 0"
         if where:
             sql += f" AND {where}"
         sql += f" ORDER BY s.total DESC NULLS LAST LIMIT {int(limit)}"
-        found = conn.execute(sql, tuple(params)).fetchall()
+        found = conn.execute(sql, (db.DEFAULT_RATER, *tuple(params))).fetchall()
         out = []
         for row in found:
             data = dict(row)

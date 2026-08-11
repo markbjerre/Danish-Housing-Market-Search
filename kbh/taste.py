@@ -94,8 +94,14 @@ def _mean(values: Sequence[float]) -> Optional[float]:
     return statistics.mean(clean) if clean else None
 
 
-def analyse(conn: sqlite3.Connection) -> TasteReport:
-    rows = [dict(r) for r in db.rated_listings(conn)]
+def analyse(conn: sqlite3.Connection, rater: Optional[str] = None) -> TasteReport:
+    """What one person's ratings say about what they actually like.
+
+    Per person on purpose. Two buyers averaged together produce a preference
+    profile that describes neither of them, and the disagreements are exactly
+    the signal worth keeping rather than smoothing away.
+    """
+    rows = [dict(r) for r in db.rated_listings(conn, rater=rater)]
     report = TasteReport(total_rated=len(rows))
 
     liked = [r for r in rows if r["stars"] in LIKED]

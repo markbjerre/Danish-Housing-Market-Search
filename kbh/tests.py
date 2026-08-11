@@ -135,6 +135,93 @@ class HouseboatDetection(unittest.TestCase):
                 self.assertIsNone(parse.HOUSEBOAT_PATTERN.search(text))
 
 
+class Raters(unittest.TestCase):
+    """Ratings are per person, and both failure modes are silent.
+
+    These use a real in-memory database rather than mocks, because what is
+    being tested is the SQL: a join that loses its rater filter and a write
+    that loses its rater scope both look completely normal from Python.
+    """
+
+    def setUp(self):
+        import sqlite3 as sq
+
+        from . import db
+
+        self.db = db
+        self.conn = sq.connect(":memory:")
+        self.conn.row_factory = sq.Row
+        self.conn.executescript(db.SCHEMA)
+        for case_id, address in (("a", "Testvej 1"), ("b", "Testvej 2")):
+            self.conn.execute(
+                "INSERT INTO listings (case_id, address, is_active, excluded) "
+                "VALUES (?,?,1,0)",
+                (case_id, address),
+            )
+
+    def tearDown(self):
+        self.conn.close()
+
+    def test_a_second_rater_does_not_duplicate_listings(self):
+        """The join must be scoped to one person.
+
+        ratings is keyed on (case_id, rater), so an unfiltered LEFT JOIN
+        returns one row per listing per rater. Every flat both people rated
+        would appear twice in the list, the counts would disagree with the
+        page, and nothing would raise.
+        """
+        before = len(self.db.active_listings(self.conn, rater="mark"))
+        self.db.save_rating(self.conn, "a", 4, "fin", rater="mark")
+        self.db.save_rating(self.conn, "a", 1, "grim", rater="anna")
+        self.db.save_rating(self.conn, "b", 5, "", rater="anna")
+        self.assertEqual(len(self.db.active_listings(self.conn, rater="mark")), before)
+        self.assertEqual(len(self.db.active_listings(self.conn, rater="anna")), before)
+
+    def test_two_people_keep_their_own_stars_on_the_same_home(self):
+        self.db.save_rating(self.conn, "a", 4, "godt lys", rater="mark")
+        self.db.save_rating(self.conn, "a", 1, "for mørkt", rater="anna")
+        self.assertEqual(self.db.listing(self.conn, "a", rater="mark")["stars"], 4)
+        self.assertEqual(self.db.listing(self.conn, "a", rater="anna")["stars"], 1)
+        self.assertEqual(
+            self.db.listing(self.conn, "a", rater="mark")["rating_note"], "godt lys"
+        )
+
+    def test_clearing_a_rating_leaves_the_other_person_alone(self):
+        """Zero stars deletes. Unscoped, it would delete both judgements."""
+        self.db.save_rating(self.conn, "a", 4, "", rater="mark")
+        self.db.save_rating(self.conn, "a", 2, "", rater="anna")
+        self.db.save_rating(self.conn, "a", 0, "", rater="mark")
+        self.assertIsNone(self.db.listing(self.conn, "a", rater="mark")["stars"])
+        self.assertEqual(self.db.listing(self.conn, "a", rater="anna")["stars"], 2)
+
+    def test_counts_and_queue_are_per_person(self):
+        self.db.save_rating(self.conn, "a", 4, "", rater="mark")
+        self.db.save_rating(self.conn, "b", 3, "", rater="anna")
+        self.assertEqual(self.db.rating_counts(self.conn, rater="mark")["total"], 1)
+        self.assertEqual(self.db.rating_counts(self.conn, rater="anna")["total"], 1)
+        # The rating queue must offer each person what *they* have not judged.
+        mark_queue = {
+            r["case_id"] for r in self.db.unrated_listings(self.conn, rater="mark")
+        }
+        anna_queue = {
+            r["case_id"] for r in self.db.unrated_listings(self.conn, rater="anna")
+        }
+        self.assertEqual(mark_queue, {"b"})
+        self.assertEqual(anna_queue, {"a"})
+
+    def test_disagreements_need_two_people_and_a_real_gap(self):
+        self.db.save_rating(self.conn, "a", 5, "", rater="mark")
+        self.db.save_rating(self.conn, "a", 1, "", rater="anna")
+        self.db.save_rating(self.conn, "b", 3, "", rater="mark")
+        self.db.save_rating(self.conn, "b", 3, "", rater="anna")
+        rows = self.db.disagreements(self.conn, min_gap=2)
+        self.assertEqual([r["case_id"] for r in rows], ["a"])
+        self.assertEqual(rows[0]["gap"], 4)
+        # Agreement is not a disagreement, and one opinion is not either.
+        self.db.save_rating(self.conn, "b", 0, "", rater="anna")
+        self.assertEqual(self.db.disagreements(self.conn, min_gap=1), rows)
+
+
 class Scoring(unittest.TestCase):
     def setUp(self):
         self.market = scoring.MarketContext()

@@ -23,6 +23,42 @@ app = Flask(__name__)
 
 
 # --------------------------------------------------------------------------
+# Who is looking
+#
+# There is no login screen and there should not be one. Traefik does HTTP
+# basic auth in front of the app and, by default, passes the Authorization
+# header through to the backend, so the username it already validated is the
+# identity. One password each, no user table, no session handling.
+#
+# Locally there is no proxy and no header, so it falls back to the configured
+# default rater. That keeps `python -m kbh.webapp.app` working exactly as
+# before for a single user.
+#
+# This is authentication for *identity*, not for security: the app trusts the
+# username because Traefik refuses to forward the request without a valid
+# password. Exposing the app directly, with no proxy, would let anyone claim
+# any name. Do not do that.
+# --------------------------------------------------------------------------
+
+
+def current_rater() -> str:
+    auth = request.authorization
+    if auth and auth.username:
+        return auth.username.strip().lower()
+    return config.DEFAULT_RATER
+
+
+def rater_label(name: str) -> str:
+    return config.RATER_NAMES.get(name, name.capitalize())
+
+
+@app.context_processor
+def inject_rater() -> Dict[str, Any]:
+    who = current_rater()
+    return {"rater": who, "rater_label": rater_label(who)}
+
+
+# --------------------------------------------------------------------------
 # Presentation helpers, exposed to Jinja
 # --------------------------------------------------------------------------
 
@@ -193,7 +229,10 @@ def index():
         preview = request.args.get("profil")
         if preview and preview in config.PROFILES:
             profile_key, weights = preview, dict(config.PROFILES[preview]["weights"])
-        rows = [reweight(row_to_dict(r), weights) for r in db.active_listings(conn)]
+        rows = [
+            reweight(row_to_dict(r), weights)
+            for r in db.active_listings(conn, rater=current_rater())
+        ]
         stats = summary_stats(conn)
     flag_expense_outliers(rows)
 
@@ -245,7 +284,7 @@ def api_profile():
 @app.route("/bolig/<case_id>")
 def detail(case_id: str):
     with db.session() as conn:
-        row = db.listing(conn, case_id)
+        row = db.listing(conn, case_id, rater=current_rater())
         if row is None:
             abort(404)
         _, weights = db.active_weights(conn)
@@ -312,8 +351,8 @@ def api_rate():
             is None
         ):
             return jsonify({"error": "ukendt bolig"}), 404
-        db.save_rating(conn, case_id, stars, note)
-        counts = db.rating_counts(conn)
+        db.save_rating(conn, case_id, stars, note, rater=current_rater())
+        counts = db.rating_counts(conn, rater=current_rater())
     return jsonify(
         {"ok": True, "case_id": case_id, "stars": stars, "note": note, "counts": counts}
     )
@@ -328,11 +367,15 @@ def rate_view():
     """
     with db.session() as conn:
         _, weights = db.active_weights(conn)
-        pending = [reweight(row_to_dict(r), weights)
-                   for r in db.unrated_listings(conn, limit=300)]
+        pending = [
+            reweight(row_to_dict(r), weights)
+            for r in db.unrated_listings(conn, limit=300, rater=current_rater())
+        ]
         pending.sort(key=lambda r: -(r.get("score") or 0))
-        counts = db.rating_counts(conn)
-        recent = [row_to_dict(r) for r in db.rated_listings(conn)][:12]
+        counts = db.rating_counts(conn, rater=current_rater())
+        recent = [
+            row_to_dict(r) for r in db.rated_listings(conn, rater=current_rater())
+        ][:12]
     flag_expense_outliers(pending)
     return render_template("rate.html", queue=pending, counts=counts, recent=recent)
 
@@ -341,11 +384,17 @@ def rate_view():
 def patterns():
     """What the ratings say about what he actually likes."""
     refresh = request.args.get("ai") == "1"
+    # ?rater=x reads someone else's patterns without pretending to be them.
+    # Useful for comparing two people; it changes nothing and writes nothing.
+    who = request.args.get("rater") or current_rater()
     with db.session() as conn:
-        report = taste.analyse(conn)
+        report = taste.analyse(conn, rater=who)
         _, active_weights = db.active_weights(conn)
-        rated = [reweight(row_to_dict(r), active_weights)
-                 for r in db.rated_listings(conn)]
+        rated = [
+            reweight(row_to_dict(r), active_weights)
+            for r in db.rated_listings(conn, rater=who)
+        ]
+        everyone = db.raters(conn)
 
     if refresh and report.comments:
         try:
@@ -357,8 +406,36 @@ def patterns():
         "patterns.html",
         report=report,
         rated=rated,
+        viewing=who,
+        viewing_label=rater_label(who),
+        everyone=everyone,
         weights=config.WEIGHTS,
         labels=config.FACTOR_LABELS,
+    )
+
+
+@app.route("/uenighed")
+def disagreements():
+    """Where two people scored the same home differently.
+
+    The point of keeping ratings per person rather than averaging them. Two
+    buyers agreeing needs no discussion; a two star gap is the conversation to
+    have before spending a Saturday on a viewing.
+    """
+    try:
+        min_gap = max(1, min(4, int(request.args.get("gap", 2))))
+    except (TypeError, ValueError):
+        min_gap = 2
+
+    with db.session() as conn:
+        rows = [dict(r) for r in db.disagreements(conn, min_gap=min_gap)]
+        everyone = db.raters(conn)
+
+    return render_template(
+        "disagreements.html",
+        rows=rows,
+        everyone=everyone,
+        min_gap=min_gap,
     )
 
 
@@ -366,7 +443,10 @@ def patterns():
 def api_listings():
     with db.session() as conn:
         _, weights = db.active_weights(conn)
-        rows = [reweight(row_to_dict(r), weights) for r in db.active_listings(conn)]
+        rows = [
+            reweight(row_to_dict(r), weights)
+            for r in db.active_listings(conn, rater=current_rater())
+        ]
     return jsonify(apply_filters(rows, request.args))
 
 
@@ -375,7 +455,10 @@ def api_map():
     """Minimal payload for the map: one point per listing."""
     with db.session() as conn:
         _, weights = db.active_weights(conn)
-        rows = [reweight(row_to_dict(r), weights) for r in db.active_listings(conn)]
+        rows = [
+            reweight(row_to_dict(r), weights)
+            for r in db.active_listings(conn, rater=current_rater())
+        ]
     rows = apply_filters(rows, request.args)
     return jsonify(
         [

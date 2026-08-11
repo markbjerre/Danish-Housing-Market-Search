@@ -39,6 +39,9 @@ header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -0.01e
 header nav { display: flex; gap: 14px; font-size: 13px; }
 header nav a { color: var(--muted); text-decoration: none; }
 header nav a:hover, header nav a.on { color: var(--text); }
+.whoami { margin-left: 14px; font-size: 12px; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+  white-space: nowrap; }
 .stats { margin-left: auto; display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
 .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
 main { padding: 20px; max-width: 1400px; margin: 0 auto; }
@@ -77,8 +80,13 @@ footer { padding: 30px 20px; color: var(--muted); font-size: 12px; text-align: c
     <a href="/" class="{{ 'on' if request.path == '/' }}">Boliger</a>
     <a href="/bedoem" class="{{ 'on' if request.path == '/bedoem' }}">Bedøm</a>
     <a href="/moenstre" class="{{ 'on' if request.path == '/moenstre' }}">Mønstre</a>
+    <a href="/uenighed" class="{{ 'on' if request.path == '/uenighed' }}">Uenigheder</a>
     <a href="/udelukkede" class="{{ 'on' if request.path == '/udelukkede' }}">Frafiltreret</a>
   </nav>
+  {# Whose stars are being shown. Without this the page is ambiguous the moment
+     more than one person can log in, and a rating going to the wrong name is
+     invisible until the taste analysis starts describing a stranger. #}
+  <span class="whoami" title="Bedømmelser gemmes på dette navn">{{ rater_label }}</span>
   {% block headerstats %}{% endblock %}
 </header>
 <main>{% block body %}{% endblock %}</main>

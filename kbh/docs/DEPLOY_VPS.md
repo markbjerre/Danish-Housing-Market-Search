@@ -23,11 +23,43 @@ Supabase. This keeps a SQLite file, so both containers mount a named volume at
 Boligsiden, but it also loses every star rating and comment, which are the only
 things in there that cannot be refetched. Back it up.
 
-**It has no authentication whatsoever.** No login, no Supabase Auth, nothing.
-The pages carry private ratings and written notes about specific homes. Traefik
-basic auth is the minimum before it faces the public internet, and it is
-configured below. If you would rather it never be public at all, see
-"Tailscale only" at the end.
+**Authentication is basic auth, and it is also the login system.** There is no
+login page and there should not be one for two people. Traefik validates the
+password and forwards the username, and the app reads that username to decide
+whose ratings a click becomes. One account each.
+
+## Two people rating the same homes
+
+This is the part that needed real work rather than a config line.
+
+Ratings used to be keyed on `case_id` alone: **one opinion per home, for
+everybody**. The moment a second person gave a flat five stars, the first
+person's stars and written comment were gone, and `/moenstre` started
+describing a buyer who does not exist. Nothing would have errored.
+
+Ratings are now keyed on `(case_id, rater)`:
+
+- Each person has their own stars, their own comments, and their own rating
+  queue at `/bedoem` showing what *they* have not judged.
+- `/moenstre` runs per person. Averaging two buyers produces a preference
+  profile that describes neither, so it does not.
+- **`/uenighed`** is new and is the reason to bother: the homes you scored
+  differently, widest gap first, with both comments side by side. Agreement
+  needs no discussion. A three star gap is the conversation to have before
+  spending a Saturday on a viewing.
+- The header shows whose name the current session is rating as, because a
+  rating landing on the wrong name is otherwise invisible until the taste
+  analysis goes strange.
+
+Existing ratings were migrated to the `KBH_RATER` default, `mark`. The old
+single rater table is kept as `ratings_single_rater` rather than dropped,
+because those judgements are the only data in the system that cannot be
+refetched from Boligsiden.
+
+Add the second person's display name to `RATER_NAMES` in `kbh/config.py` so
+the header says "Anna" rather than "anna". The username in the htpasswd entry
+is the rater key: keep it lowercase, and do not rename it later, because
+renaming a login orphans that person's ratings under the old name.
 
 ## 1. DNS
 
@@ -65,11 +97,14 @@ imported as `kbh.something` and needs its parent on the path.
 TELEGRAM_BOT_TOKEN=123456:ABC...
 TELEGRAM_CHAT_ID=987654321
 
-# Basic auth for the web UI. Generate with:
-#   htpasswd -nbB mark 'a-real-password' | sed -e 's/\$/\$\$/g'
+# Basic auth for the web UI, and the app's only notion of who is who.
+# One entry per person, joined with a comma. Generate each with:
+#   htpasswd -nbB mark 'password-one' | sed -e 's/\$/\$\$/g'
+#   htpasswd -nbB anna 'password-two' | sed -e 's/\$/\$\$/g'
 # The doubled dollar signs are required. Compose eats single ones and you get
 # a login that rejects the correct password with no useful error.
-KBH_BASIC_AUTH=mark:$$2y$$05$$...
+# The username becomes the rater key, so keep it lowercase and stable.
+KBH_BASIC_AUTH=mark:$$2y$$05$$...,anna:$$2y$$05$$...
 ```
 
 ## 4. docker-compose services
@@ -106,13 +141,23 @@ docker compose exec ai-vaerksted-kbh-cron \
 ## 7. Verify
 
 ```bash
-curl -sI https://boliger.ai-vaerksted.cloud/ | head -5     # expect 401
+curl -sI https://boliger.ai-vaerksted.cloud/ | head -5                    # expect 401
 curl -sI -u mark:PASSWORD https://boliger.ai-vaerksted.cloud/ | head -5   # expect 200
-docker compose logs --tail 20 ai-vaerksted-kbh-cron        # expect the cron schedule line
+docker compose logs --tail 20 ai-vaerksted-kbh-cron       # expect the cron schedule line
 ```
 
 The cron container prints its schedule on start. If it does not, cron is not
 running and the daily update will never happen.
+
+**Check that identity is arriving**, because a broken header degrades quietly
+rather than failing. Log in as each person and confirm the name in the top
+right of the page matches who you signed in as. If both people see the same
+name, Traefik is not forwarding the Authorization header and every rating is
+landing on one account.
+
+```bash
+curl -s -u anna:PASSWORD https://boliger.ai-vaerksted.cloud/ | grep -o 'whoami[^<]*<[^<]*'
+```
 
 ## The AI verdicts do not move to the server for free
 
@@ -143,13 +188,17 @@ Three options, in the order I would try them:
 Numbers, scoring, geometry, alerts and the whole web UI work on the VPS without
 any of this. Only the verdict text is affected.
 
-## Tailscale only, if you would rather it not be public
+## Why not Tailscale only
 
-The VPS is already on Tailscale at `100.77.253.18`. Binding the service to the
-Tailscale interface instead of giving it a Traefik router means the site is
-reachable from your own devices and from nowhere else, and the basic auth
-becomes unnecessary. Given that the pages contain private notes about homes you
-may be bidding on, this is the option I would pick.
+It was the tighter option and it is ruled out by the requirement: a second
+person needs access from her own phone and laptop, and Tailscale means
+installing a VPN client on every device she uses and keeping it connected. A
+URL and a password is the right trade here. Basic auth over TLS, on a
+subdomain nobody links to, for a site whose worst case disclosure is which
+flats two people liked.
+
+If that ever stops feeling sufficient, the upgrade is Traefik's forward auth
+against an identity provider, not a login page bolted onto Flask.
 
 ## Backups
 

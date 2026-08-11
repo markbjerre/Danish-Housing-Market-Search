@@ -11,6 +11,7 @@ Schema is created on demand and migrations are additive only.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -18,6 +19,12 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from . import config
+
+logger = logging.getLogger(__name__)
+
+# Who a rating belongs to when nothing says otherwise: the command line, the
+# Telegram bot, and a local run with no authentication in front of it.
+DEFAULT_RATER: str = config.DEFAULT_RATER
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS listings (
@@ -153,14 +160,21 @@ CREATE TABLE IF NOT EXISTS preferences (
 );
 
 CREATE TABLE IF NOT EXISTS ratings (
-    case_id    TEXT PRIMARY KEY,
+    case_id    TEXT NOT NULL,
+    -- Who gave the rating. Two people looking for one home do not have one
+    -- opinion, and the taste analysis is only meaningful per person: averaging
+    -- two buyers produces a profile that describes neither of them. It is also
+    -- the more interesting data, because where two raters disagree about the
+    -- same flat is worth more than where they agree.
+    rater      TEXT NOT NULL DEFAULT 'mark',
     stars      INTEGER NOT NULL,
     note       TEXT,
     rated_at   TEXT NOT NULL,
     -- The score at the moment of rating, kept so a later rescore cannot
     -- rewrite history and make the taste analysis compare against numbers
     -- that did not exist when the judgement was made.
-    score_when_rated REAL
+    score_when_rated REAL,
+    PRIMARY KEY (case_id, rater)
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
@@ -294,6 +308,57 @@ def _migrate(conn: sqlite3.Connection) -> None:
         for name, sql_type in columns:
             if name not in existing:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
+
+    _migrate_ratings_to_multi_rater(conn)
+
+
+def _migrate_ratings_to_multi_rater(conn: sqlite3.Connection) -> None:
+    """Give every existing rating an owner.
+
+    The original table was keyed on case_id alone, which silently means one
+    opinion per home for everybody. The moment a second person rates a flat,
+    the first person's stars and written comment are overwritten and the taste
+    analysis starts describing a buyer who does not exist.
+
+    SQLite cannot alter a primary key, so the table is rebuilt. Existing rows
+    are attributed to DEFAULT_RATER rather than discarded: they are the only
+    data in the whole system that cannot be refetched from Boligsiden.
+    """
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(ratings)").fetchall()
+    }
+    if not columns or "rater" in columns:
+        return
+
+    conn.execute("ALTER TABLE ratings RENAME TO ratings_single_rater")
+    conn.execute(
+        """
+        CREATE TABLE ratings (
+            case_id    TEXT NOT NULL,
+            rater      TEXT NOT NULL DEFAULT 'mark',
+            stars      INTEGER NOT NULL,
+            note       TEXT,
+            rated_at   TEXT NOT NULL,
+            score_when_rated REAL,
+            PRIMARY KEY (case_id, rater)
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO ratings (case_id, rater, stars, note, rated_at, score_when_rated) "
+        "SELECT case_id, ?, stars, note, rated_at, score_when_rated "
+        "FROM ratings_single_rater",
+        (DEFAULT_RATER,),
+    )
+    moved = conn.execute("SELECT COUNT(*) c FROM ratings").fetchone()["c"]
+    # The old table is kept, not dropped. It costs a few kilobytes and it is
+    # the only copy of these judgements if the rebuild got something wrong.
+    logger.info(
+        "Migrated %s ratings to per rater keying, attributed to '%s'. "
+        "The previous table is kept as ratings_single_rater.",
+        moved,
+        DEFAULT_RATER,
+    )
 
 
 @contextmanager
@@ -559,14 +624,28 @@ def finish_run(
 # Reads
 # --------------------------------------------------------------------------
 
-LISTING_VIEW = """
+
+def listing_view(rater: Optional[str] = None) -> str:
+    """The listing join, with ratings scoped to exactly one person.
+
+    The rater filter is not optional and must never be dropped. ``ratings`` is
+    keyed on (case_id, rater), so an unfiltered LEFT JOIN returns one row per
+    listing *per rater*: the moment a second person rates anything, every
+    listing they touched appears twice in the list, the counts disagree with
+    the page, and nothing errors.
+
+    Returns SQL whose first bound parameter is the rater. Callers append their
+    own WHERE clause and pass the rater ahead of their own parameters.
+    """
+    return """
 SELECT l.*, s.total AS score, s.bonus, s.breakdown, s.neighbourhood,
        s.neighbourhood_tier, s.parish, s.parish_sqm_price, s.benchmark_basis,
        s.benchmark_source, s.headline,
        s.sqm_price_ratio, s.water_distance_m, s.water_name, s.water_kind,
+       s.transit_distance_m, s.transit_name, s.transit_kind, s.noise_sources,
        v.verdict AS ai_verdict, v.created_at AS ai_created_at,
        d.page_views, d.clicks, d.favourites,
-       rt.stars, rt.note AS rating_note, rt.rated_at
+       rt.stars, rt.note AS rating_note, rt.rated_at, rt.rater
 FROM listings l
 LEFT JOIN scores s ON s.case_id = l.case_id
 LEFT JOIN ai_verdicts v ON v.case_id = l.case_id
@@ -575,7 +654,7 @@ LEFT JOIN (
            ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY captured_at DESC) AS rn
     FROM demand
 ) d ON d.case_id = l.case_id AND d.rn = 1
-LEFT JOIN ratings rt ON rt.case_id = l.case_id
+LEFT JOIN ratings rt ON rt.case_id = l.case_id AND rt.rater = ?
 """
 
 
@@ -616,20 +695,32 @@ def active_weights(conn: sqlite3.Connection) -> Tuple[str, Dict[str, float]]:
 
 
 def save_rating(
-    conn: sqlite3.Connection, case_id: str, stars: int, note: str = ""
+    conn: sqlite3.Connection,
+    case_id: str,
+    stars: int,
+    note: str = "",
+    rater: Optional[str] = None,
 ) -> None:
-    """Store or replace a rating. Zero stars removes it."""
+    """Store or replace one person's rating. Zero stars removes it.
+
+    Scoped to the rater in both directions. Without that, clearing a rating
+    would delete the other person's judgement of the same flat.
+    """
+    who = rater or DEFAULT_RATER
     if stars <= 0:
-        conn.execute("DELETE FROM ratings WHERE case_id = ?", (case_id,))
+        conn.execute(
+            "DELETE FROM ratings WHERE case_id = ? AND rater = ?", (case_id, who)
+        )
         return
     score = conn.execute(
         "SELECT total FROM scores WHERE case_id = ?", (case_id,)
     ).fetchone()
     conn.execute(
-        "INSERT OR REPLACE INTO ratings (case_id, stars, note, rated_at, "
-        "score_when_rated) VALUES (?,?,?,?,?)",
+        "INSERT OR REPLACE INTO ratings (case_id, rater, stars, note, rated_at, "
+        "score_when_rated) VALUES (?,?,?,?,?,?)",
         (
             case_id,
+            who,
             int(stars),
             note or None,
             now_iso(),
@@ -638,46 +729,103 @@ def save_rating(
     )
 
 
-def rated_listings(conn: sqlite3.Connection) -> List[sqlite3.Row]:
+def rated_listings(
+    conn: sqlite3.Connection, rater: Optional[str] = None
+) -> List[sqlite3.Row]:
+    who = rater or DEFAULT_RATER
     return conn.execute(
-        f"{LISTING_VIEW} WHERE rt.stars IS NOT NULL ORDER BY rt.stars DESC, s.total DESC"
+        f"{listing_view()} WHERE rt.stars IS NOT NULL "
+        f"ORDER BY rt.stars DESC, s.total DESC",
+        (who,),
     ).fetchall()
 
 
-def unrated_listings(conn: sqlite3.Connection, limit: int = 200) -> List[sqlite3.Row]:
-    """Candidates still awaiting a verdict from Mark, best first."""
+def unrated_listings(
+    conn: sqlite3.Connection, limit: int = 200, rater: Optional[str] = None
+) -> List[sqlite3.Row]:
+    """Candidates this person has not judged yet, best first."""
+    who = rater or DEFAULT_RATER
     return conn.execute(
-        f"{LISTING_VIEW} WHERE l.is_active = 1 AND l.excluded = 0 "
-        f"AND rt.stars IS NULL ORDER BY s.total DESC NULLS LAST LIMIT {int(limit)}"
+        f"{listing_view()} WHERE l.is_active = 1 AND l.excluded = 0 "
+        f"AND rt.stars IS NULL ORDER BY s.total DESC NULLS LAST LIMIT {int(limit)}",
+        (who,),
     ).fetchall()
 
 
-def rating_counts(conn: sqlite3.Connection) -> Dict[str, int]:
-    total = conn.execute("SELECT COUNT(*) c FROM ratings").fetchone()["c"]
+def rating_counts(
+    conn: sqlite3.Connection, rater: Optional[str] = None
+) -> Dict[str, int]:
+    who = rater or DEFAULT_RATER
+    total = conn.execute(
+        "SELECT COUNT(*) c FROM ratings WHERE rater = ?", (who,)
+    ).fetchone()["c"]
     rows = conn.execute(
-        "SELECT stars, COUNT(*) c FROM ratings GROUP BY stars"
+        "SELECT stars, COUNT(*) c FROM ratings WHERE rater = ? GROUP BY stars", (who,)
     ).fetchall()
     out = {str(r["stars"]): r["c"] for r in rows}
     out["total"] = total
     return out
 
 
+def raters(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+    """Everyone who has rated anything, most active first."""
+    return [
+        {"rater": r["rater"], "count": r["c"]}
+        for r in conn.execute(
+            "SELECT rater, COUNT(*) c FROM ratings GROUP BY rater ORDER BY c DESC"
+        ).fetchall()
+    ]
+
+
+def disagreements(conn: sqlite3.Connection, min_gap: int = 2) -> List[sqlite3.Row]:
+    """Homes two people scored differently, widest gap first.
+
+    The most useful screen in the application when more than one person is
+    looking. Agreement needs no discussion; a two star gap is the conversation
+    worth having before a viewing.
+    """
+    return conn.execute(
+        """
+        SELECT l.case_id, l.address, l.price, l.living_area, l.number_of_rooms,
+               l.image_url, s.total AS score,
+               MAX(rt.stars) - MIN(rt.stars) AS gap,
+               COUNT(*) AS raters,
+               GROUP_CONCAT(rt.rater || ':' || rt.stars, ' | ') AS detail,
+               GROUP_CONCAT(rt.rater || ': ' || COALESCE(rt.note, ''), ' || ') AS notes
+        FROM ratings rt
+        JOIN listings l ON l.case_id = rt.case_id
+        LEFT JOIN scores s ON s.case_id = rt.case_id
+        GROUP BY rt.case_id
+        HAVING COUNT(*) > 1 AND gap >= ?
+        ORDER BY gap DESC, s.total DESC
+        """,
+        (int(min_gap),),
+    ).fetchall()
+
+
 def active_listings(
     conn: sqlite3.Connection,
     include_excluded: bool = False,
     limit: Optional[int] = None,
+    rater: Optional[str] = None,
 ) -> List[sqlite3.Row]:
+    who = rater or DEFAULT_RATER
     where = "WHERE l.is_active = 1" + (
         "" if include_excluded else " AND l.excluded = 0"
     )
-    sql = f"{LISTING_VIEW} {where} ORDER BY s.total DESC NULLS LAST"
+    sql = f"{listing_view()} {where} ORDER BY s.total DESC NULLS LAST"
     if limit:
         sql += f" LIMIT {int(limit)}"
-    return conn.execute(sql).fetchall()
+    return conn.execute(sql, (who,)).fetchall()
 
 
-def listing(conn: sqlite3.Connection, case_id: str) -> Optional[sqlite3.Row]:
-    return conn.execute(f"{LISTING_VIEW} WHERE l.case_id = ?", (case_id,)).fetchone()
+def listing(
+    conn: sqlite3.Connection, case_id: str, rater: Optional[str] = None
+) -> Optional[sqlite3.Row]:
+    who = rater or DEFAULT_RATER
+    return conn.execute(
+        f"{listing_view()} WHERE l.case_id = ?", (who, case_id)
+    ).fetchone()
 
 
 def price_events(conn: sqlite3.Connection, case_id: str) -> List[sqlite3.Row]:

@@ -529,6 +529,26 @@ ENERGY_SCORES: Dict[str, float] = {
 }
 
 # --------------------------------------------------------------------------
+# Raters
+#
+# Two people looking for one home do not have one opinion. Ratings are keyed
+# per person, and the taste analysis runs per person, because averaging two
+# buyers produces a profile that describes neither.
+#
+# Identity comes from the HTTP basic auth username when the app sits behind
+# Traefik, and falls back to this everywhere else: the command line, the
+# Telegram bot, and a local run with nothing in front of it.
+# --------------------------------------------------------------------------
+
+DEFAULT_RATER: str = os.environ.get("KBH_RATER", "mark")
+
+# Display names for the login usernames. Anyone not listed shows as their
+# username, which is ugly rather than broken.
+RATER_NAMES: Dict[str, str] = {
+    "mark": "Mark",
+}
+
+# --------------------------------------------------------------------------
 # Alerting
 # --------------------------------------------------------------------------
 
